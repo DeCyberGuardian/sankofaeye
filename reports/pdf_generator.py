@@ -605,7 +605,7 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
                              else C_MEDIUM if spf.get("strength") == "weak"
                              else C_CRITICAL))
          ),
-         Paragraph(spf.get("record", "No SPF record found")[:80], S["Small"])],
+         Paragraph((spf.get("record") or "No SPF record found")[:80], S["Small"])],
         [Paragraph("DMARC", S["Body"]),
          Paragraph(
              f"✓ {dmarc.get('policy','').upper()}" if dmarc.get("policy") == "reject"
@@ -616,22 +616,28 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
                              else C_MEDIUM if dmarc.get("present")
                              else C_CRITICAL))
          ),
-         Paragraph(dmarc.get("record", "No DMARC record found")[:80], S["Small"])],
+         Paragraph((dmarc.get("record") or "No DMARC record found")[:80], S["Small"])],
         [Paragraph("DKIM", S["Body"]),
          Paragraph(
-             f"✓ {len(dkim.get('found_selectors',[]))} selector(s)" if dkim.get("present") else "✗ Not found",
+             f"✓ {len(dkim.get('found_selectors', []))} selector(s)"
+             if dkim.get("present") else "✗ Not found",
              ParagraphStyle("dkim_s", fontName="Helvetica-Bold", fontSize=9,
                  textColor=C_LOW if dkim.get("present") else C_CRITICAL)
          ),
          Paragraph(
-             ", ".join([s["selector"] for s in dkim.get("found_selectors", [])]) or "No DKIM selectors found",
+             ", ".join([s["selector"] for s in dkim.get("found_selectors", [])])
+             or "No DKIM selectors found",
              S["Small"])],
         [Paragraph("MX / Mail", S["Body"]),
-         Paragraph(mx.get("provider", "Unknown"), S["Body"]),
-         Paragraph(mx.get("records", ["No MX records"])[0][:80] if mx.get("records") else "No MX records", S["Small"])],
+         Paragraph(mx.get("provider") or "Unknown", S["Body"]),
+         Paragraph(
+             (mx.get("records") or ["No MX records"])[0][:80],
+             S["Small"])],
         [Paragraph("Nameservers", S["Body"]),
-         Paragraph(ns.get("provider", "Unknown"), S["Body"]),
-         Paragraph(", ".join(ns.get("records", []))[:80] if ns.get("records") else "No NS records", S["Small"])],
+         Paragraph(ns.get("provider") or "Unknown", S["Body"]),
+         Paragraph(
+             ", ".join(ns.get("records") or [])[:80] or "No NS records",
+             S["Small"])],
     ]
 
     col_w = [25*mm, 35*mm, PAGE_W - 2*MARGIN - 60*mm]
