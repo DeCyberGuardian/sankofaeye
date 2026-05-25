@@ -1,0 +1,67 @@
+# ============================================================
+# SankofahEye Configuration
+# AfriWealth Cyber Intelligence
+# ============================================================
+# Do NOT put real API keys here. Use .env file instead.
+# This file controls module toggles, thresholds, and branding.
+
+# ── Branding ────────────────────────────────────────────────
+brand:
+  name: "AfriWealth Cyber Intelligence"
+  tool: "SankofahEye"
+  version: "1.0.0"
+  tagline: "Passive Exposure Intelligence for the African Digital Ecosystem"
+  website: "https://afriwealthci.com"
+  analyst: "DeCyberGuardian"
+
+# ── Module toggles ──────────────────────────────────────────
+modules:
+  subfinder: true        # Subdomain enumeration (requires subfinder binary)
+  theharvester: true     # Email, DNS, host harvesting (requires theHarvester)
+  shodan: true           # Exposed services via Shodan API
+  hibp: true             # Credential leak check via Have I Been Pwned
+  virustotal: true       # Domain reputation via VirusTotal API
+  urlscan: true          # Passive web scan via URLScan.io
+  darkweb: true          # Dark web mention search via Ahmia/OnionSearch
+  hudsonrock: true   # Compromised employee search via HudsonRock API (hypothetical)
+  dns: true
+
+# ── Timeouts (seconds) ──────────────────────────────────────
+timeouts:
+  subfinder: 60
+  theharvester: 120
+  shodan: 30
+  hibp: 20
+  virustotal: 30
+  urlscan: 30
+  darkweb: 45
+  hudsonrock: 30 
+  dns: 30  
+
+# ── Risk scoring weights ─────────────────────────────────────
+# Higher weight = more impact on overall risk score (0.0–1.0)
+risk_weights:
+  exposed_rdp: 1.0
+  exposed_ssh_default: 0.9
+  open_database_port: 1.0
+  credential_leak: 0.9
+  darkweb_mention: 0.95
+  malware_flag: 0.85
+  subdomain_count_high: 0.4
+  ssl_expired: 0.6
+  open_admin_panel: 0.75
+
+# ── Risk thresholds ──────────────────────────────────────────
+risk_thresholds:
+  critical: 80
+  high: 60
+  medium: 40
+  low: 0
+
+# ── Output settings ──────────────────────────────────────────
+output:
+  directory: "output"
+  log_directory: "logs"
+  pdf_report: true
+  json_dump: true        # Raw findings saved as JSON alongside PDF
+  log_level: "INFO"      # DEBUG | INFO | WARNING | ERROR

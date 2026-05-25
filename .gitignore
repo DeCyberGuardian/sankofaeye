@@ -1,0 +1,25 @@
+# Environment & secrets
+.env
+config_local.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Output & logs
+output/
+logs/
+*.pdf
+*.json
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/
