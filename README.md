@@ -152,44 +152,47 @@ python sankofaeye.py --domain example.com --config config.yaml
 
 Each scan produces two files in your output directory:
 
+```
 output/
 ├── SankofahEye_example.com_20260525_120000.pdf   ← Branded exposure report
 └── SankofahEye_example.com_20260525_120000.json  ← Raw findings data
+```
 
 ---
 
 ## 🗂️ Project Structure
+
+```
 sankofaeye/
-├── sankofaeye.py              # Main orchestrator — CLI entry point
-├── config.yaml                # Module toggles, risk weights, brand settings
-├── requirements.txt           # Python dependencies
-├── .env.example               # API key template
-├── .gitignore                 # Excludes .env, output/, logs/
+├── sankofaeye.py                  # Main orchestrator — CLI entry point
+├── config.yaml                    # Module toggles, risk weights, brand settings
+├── requirements.txt               # Python dependencies
+├── .env.example                   # API key template
+├── .gitignore                     # Excludes .env, output/, logs/
 │
 ├── modules/
-│   ├── subfinder_module.py    # Subdomain enumeration
-│   ├── harvester_module.py    # Email + host harvesting
-│   ├── censys_module.py       # Exposed services (Censys API)
-│   ├── hibp_module.py         # Credential leak check
-│   ├── vt_urlscan_module.py   # Domain reputation
-│   ├── darkweb_module.py      # Dark web mention search
-│   ├── hudsonrock_module.py   # Infostealer log check
-│   └── dns_module.py          # DNS security analysis
+│   ├── subfinder_module.py        # Subdomain enumeration
+│   ├── harvester_module.py        # Email + host harvesting
+│   ├── censys_module.py           # Exposed services (Censys API)
+│   ├── hibp_module.py             # Credential leak check
+│   ├── vt_urlscan_module.py       # Domain reputation
+│   ├── darkweb_module.py          # Dark web mention search
+│   ├── hudsonrock_module.py       # Infostealer log check
+│   └── dns_module.py              # DNS security analysis
 │
 ├── utils/
-│   ├── aggregator.py          # Normalise + merge all findings
-│   ├── risk_scorer.py         # Risk score + MITRE ATT&CK mapping
-│   ├── logger.py              # Coloured console + file logging
-│   └── validator.py           # Domain input validation
+│   ├── aggregator.py              # Normalise + merge all findings
+│   ├── risk_scorer.py             # Risk score + MITRE ATT&CK mapping
+│   ├── logger.py                  # Coloured console + file logging
+│   └── validator.py               # Domain input validation
 │
 ├── reports/
-│   └── pdf_generator.py       # AfriWealth branded PDF report
+│   └── pdf_generator.py           # AfriWealth branded PDF report
 │
-├── output/                    # Generated reports (gitignored)
-├── logs/                      # Scan logs (gitignored)
-└── samples/                   # Redacted example report
-
----
+├── output/                        # Generated reports (gitignored)
+├── logs/                          # Scan logs (gitignored)
+└── samples/                       # Redacted example report
+```
 
 ## 🛡️ Ethical & Legal Guidelines
 
