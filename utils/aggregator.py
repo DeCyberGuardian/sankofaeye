@@ -20,6 +20,7 @@ def aggregate(
     darkweb,
     hudsonrock,
     dns,
+    ssl,
     target,
 ) -> dict:
     """
@@ -75,6 +76,13 @@ def aggregate(
     mx_data    = dns.get("mx", {})
     ns_data    = dns.get("ns", {})
 
+    # ── SSL/TLS certificates ──────────────────────────────────
+    ssl_expired       = ssl.get("expired", [])
+    ssl_expiring      = ssl.get("expiring_soon", [])
+    ssl_self_signed   = ssl.get("self_signed", [])
+    ssl_weak_protocol = ssl.get("weak_protocol", [])
+    ssl_total_issues  = ssl.get("total_issues", 0)
+
     # ── Module status summary ─────────────────────────────────
     module_statuses = {
         "subfinder":    subfinder.get("status",  "unknown"),
@@ -85,6 +93,7 @@ def aggregate(
         "darkweb":      darkweb.get("status",    "unknown"),
         "hudsonrock":   hudsonrock.get("status", "unknown"),
         "dns":          dns.get("status",        "unknown"),
+        "ssl":          ssl.get("status",        "unknown"),
     }
 
     findings = {
@@ -143,6 +152,15 @@ def aggregate(
             "issues":      dns_issues,
             "issue_count": len(dns_issues),
         },
+        "ssl_certificates": {
+            "certificates":      ssl.get("certificates", []),
+            "expired":           ssl_expired,
+            "expiring_soon":     ssl_expiring,
+            "self_signed":       ssl_self_signed,
+            "weak_protocol":     ssl_weak_protocol,
+            "total_checked":     ssl.get("total_checked", 0),
+            "total_issues":      ssl_total_issues,
+        },
     }
 
     log.info(
@@ -152,7 +170,7 @@ def aggregate(
         f"Breached accounts: {len(breached_accounts)} | "
         f"Infostealer hits: {len(compromised_employees)} employees | "
         f"Dark web mentions: {len(dw_mentions)} | "
-        f"DNS issues: {len(dns_issues)}"
+        f"DNS issues: {len(dns_issues)} | SSL issues: {ssl_total_issues}"
     )
 
     return findings

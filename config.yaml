@@ -25,6 +25,7 @@ modules:
   darkweb: true          # Dark web mention search via Ahmia/OnionSearch
   hudsonrock: true   # Compromised employee search via HudsonRock API (hypothetical)
   dns: true
+  ssl: true             # SSL certificate checks (new module)
 
 # ── Timeouts (seconds) ──────────────────────────────────────
 timeouts:
@@ -37,6 +38,7 @@ timeouts:
   darkweb: 45
   hudsonrock: 30 
   dns: 30  
+  ssl: 45
 
 # ── Risk scoring weights ─────────────────────────────────────
 # Higher weight = more impact on overall risk score (0.0–1.0)

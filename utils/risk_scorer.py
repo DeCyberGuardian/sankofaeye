@@ -9,6 +9,8 @@ MITRE ATT&CK mappings, and attack scenario narratives per finding.
 from utils.logger import SankofahLogger
 
 log = SankofahLogger("risk_scorer")
+EXPIRY_CRITICAL_DAYS = 14
+EXPIRY_WARNING_DAYS  = 30
 
 # ── MITRE ATT&CK Mappings ────────────────────────────────────
 MITRE_MAPPINGS = {
@@ -26,6 +28,8 @@ MITRE_MAPPINGS = {
     "webmail_exposure":      {"id": "T1078",     "name": "Valid Accounts"},
     "email_spoofing": {"id": "T1566.001", "name": "Phishing: Spearphishing Attachment"},
     "dns_spoofing":   {"id": "T1584.002", "name": "Compromise Infrastructure: DNS Server"}, 
+    "ssl_expired":     {"id": "T1600",     "name": "Weaken Encryption"},
+    "ssl_self_signed": {"id": "T1553.004", "name": "Subvert Trust Controls: Install Root Certificate"},
 }
 
 # ── Attack Scenario Templates ─────────────────────────────────
@@ -204,7 +208,6 @@ ATTACK_SCENARIOS = {
         "likelihood": "HIGH — email harvesting is passive, free, and the foundation of most targeted attacks.",
         "threat_actors": "BEC groups, ransomware initial access brokers, nation-state APT groups.",
     },
-
     "missing_dmarc": {
     "scenario": (
         "Without DMARC enforcement, any threat actor can send emails that appear to come "
@@ -234,6 +237,39 @@ ATTACK_SCENARIOS = {
     ),
     "likelihood": "HIGH — SPF bypass is standard practice in phishing kit deployment.",
     "threat_actors": "Mass phishing operators, BEC groups, ransomware initial access brokers.",
+},
+"ssl_expired": {
+    "scenario": (
+        "An expired certificate on {target} creates multiple attack opportunities. "
+        "Users who click through the browser warning expose themselves to man-in-the-middle "
+        "attacks. Threat actors can serve a cloned site using a valid certificate while "
+        "the legitimate site shows warnings — training users to ignore security errors."
+    ),
+    "impact": (
+        "Expired certificates erode user trust and expose traffic to interception. "
+        "In Ghana's banking context, users accustomed to ignoring certificate warnings "
+        "on legitimate sites become easy targets for credential-harvesting phishing pages. "
+        "Regulatory bodies may also flag expired certificates as a compliance failure."
+    ),
+    "likelihood": "HIGH — certificate expiry is exploited opportunistically and continuously.",
+    "threat_actors": "Phishing operators, man-in-the-middle attackers, credential harvesters.",
+},
+"ssl_self_signed": {
+    "scenario": (
+        "Self-signed certificates on {target} subdomains indicate either test environments "
+        "left exposed to the internet or misconfigured production services. Attackers use "
+        "these as indicators of poorly maintained infrastructure likely to have other "
+        "security gaps. The presence of self-signed certs also enables trivial MITM attacks "
+        "since clients cannot validate the certificate chain."
+    ),
+    "impact": (
+        "Self-signed certificates on internal-facing systems left internet-accessible "
+        "expose sensitive administrative interfaces without proper identity verification. "
+        "Test and staging environments often contain production data copies and have "
+        "weaker security controls than production systems."
+    ),
+    "likelihood": "MEDIUM — frequently found alongside other misconfigurations.",
+    "threat_actors": "Opportunistic attackers, internal threat actors, reconnaissance bots.",
 },
 }
 
@@ -493,6 +529,99 @@ def score(findings: dict, weights: dict) -> dict:
                 "attack_scenario": get_attack_scenario("missing_dmarc", target),
             })
             mitre_techniques.add("T1566.001")
+
+    # ── SSL/TLS certificates ──────────────────────────────────
+    ssl_certs   = findings.get("ssl_certificates", {})
+    ssl_expired = ssl_certs.get("expired", [])
+    ssl_expiring = ssl_certs.get("expiring_soon", [])
+    ssl_self_sig = ssl_certs.get("self_signed", [])
+    ssl_weak     = ssl_certs.get("weak_protocol", [])
+
+    if ssl_expired:
+        pts = min(len(ssl_expired) * 15, 30)
+        raw_score += pts
+        finding_details.append({
+            "finding": f"{len(ssl_expired)} expired SSL/TLS certificate(s) detected",
+            "detail": (
+                f"Expired certificates on: {', '.join(ssl_expired[:5])}"
+                f"{'...' if len(ssl_expired) > 5 else ''}"
+            ),
+            "severity": "critical" if len(ssl_expired) > 2 else "high",
+            "mitre": MITRE_MAPPINGS["ssl_expired"],
+            "recommendation": (
+                "Renew all expired certificates immediately. Implement automated certificate "
+                "renewal (Let's Encrypt with certbot, or ACM if on AWS). Set calendar alerts "
+                "30 and 7 days before expiry as a backup."
+            ),
+            "attack_scenario": get_attack_scenario("ssl_expired", target),
+        })
+        mitre_techniques.add("T1600")
+
+    if ssl_expiring:
+        pts = min(len(ssl_expiring) * 5, 15)
+        raw_score += pts
+        expiring_details = ", ".join(
+            [f"{e['hostname']} ({e['days_remaining']}d)" for e in ssl_expiring[:3]]
+        )
+        finding_details.append({
+            "finding": f"{len(ssl_expiring)} certificate(s) expiring within 30 days",
+            "detail": f"Certificates expiring soon: {expiring_details}",
+            "severity": "high" if any(
+                e["days_remaining"] <= EXPIRY_CRITICAL_DAYS
+                for e in ssl_expiring
+            ) else "medium",
+            "mitre": MITRE_MAPPINGS["ssl_expired"],
+            "recommendation": (
+                "Renew expiring certificates before they expire. Priority: any expiring "
+                "within 14 days. Implement automated renewal to prevent future expiry."
+            ),
+            "attack_scenario": get_attack_scenario("ssl_expired", target),
+        })
+        mitre_techniques.add("T1600")
+
+    if ssl_self_sig:
+        pts = min(len(ssl_self_sig) * 8, 20)
+        raw_score += pts
+        finding_details.append({
+            "finding": f"{len(ssl_self_sig)} self-signed certificate(s) detected",
+            "detail": (
+                f"Self-signed certificates on: {', '.join(ssl_self_sig[:5])}"
+                f"{'...' if len(ssl_self_sig) > 5 else ''} — "
+                f"indicates exposed test/dev environments or misconfigured services"
+            ),
+            "severity": "medium",
+            "mitre": MITRE_MAPPINGS["ssl_self_signed"],
+            "recommendation": (
+                "Replace self-signed certificates with CA-signed certificates on all "
+                "internet-facing services. Restrict access to test/dev environments "
+                "via VPN or IP allowlisting — they should never be internet-accessible."
+            ),
+            "attack_scenario": get_attack_scenario("ssl_self_signed", target),
+        })
+        mitre_techniques.add("T1553.004")
+
+    if ssl_weak:
+        pts = min(len(ssl_weak) * 10, 20)
+        raw_score += pts
+        finding_details.append({
+            "finding": f"Weak TLS protocol in use on {len(ssl_weak)} host(s)",
+            "detail": (
+                f"Hosts using deprecated TLS/SSL protocols: {', '.join(ssl_weak[:5])}"
+            ),
+            "severity": "high",
+            "mitre": MITRE_MAPPINGS["ssl_expired"],
+            "recommendation": (
+                "Disable TLS 1.0 and TLS 1.1 on all servers. Enforce TLS 1.2 minimum, "
+                "TLS 1.3 preferred. Update server configuration and test with SSL Labs."
+            ),
+            "attack_scenario": {
+                "scenario": f"Weak TLS protocols on {target} are vulnerable to BEAST, POODLE, and CRIME attacks allowing traffic decryption.",
+                "impact": "Encrypted traffic can be decrypted by network-positioned attackers, exposing credentials and session tokens.",
+                "likelihood": "MEDIUM — requires network positioning but tools are freely available.",
+                "threat_actors": "Nation-state actors, ISP-level interception, advanced persistent threats.",
+            },
+        })
+        mitre_techniques.add("T1600")
 
         # SPF missing or weak
         spf_strength = spf.get("strength", "none")

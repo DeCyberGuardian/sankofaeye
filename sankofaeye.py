@@ -15,8 +15,6 @@ import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from dotenv import load_dotenv
-import modules.hudsonrock_module as hudsonrock_mod
-import modules.dns_module as dns_mod
 
 # Load .env before anything else
 load_dotenv()
@@ -26,13 +24,15 @@ from utils.validator import validate_domain
 from utils.aggregator import aggregate
 from utils.risk_scorer import score
 
-import modules.subfinder_module as subfinder_mod
+import modules.subfinder_module  as subfinder_mod
 import modules.harvester_module  as harvester_mod
-import modules.censys_module     as shodan_mod
+import modules.censys_module     as censys_mod
 import modules.hibp_module       as hibp_mod
 import modules.vt_urlscan_module as vt_urlscan_mod
 import modules.darkweb_module    as darkweb_mod
 import modules.hudsonrock_module as hudsonrock_mod
+import modules.dns_module        as dns_mod
+import modules.ssl_module        as ssl_mod
 from reports.pdf_generator import generate as generate_pdf
 
 
@@ -55,32 +55,101 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
     modules_cfg  = config.get("modules", {})
     timeouts_cfg = config.get("timeouts", {})
 
-    # ── Run modules concurrently ──────────────────────────────
-    module_map = {}
-    if modules_cfg.get("subfinder",    True): module_map["subfinder"]    = (subfinder_mod.run,   (domain,), {"timeout": timeouts_cfg.get("subfinder",    60)})
-    if modules_cfg.get("theharvester", True): module_map["harvester"]    = (harvester_mod.run,   (domain,), {"timeout": timeouts_cfg.get("theharvester", 60)})
-    if modules_cfg.get("shodan",       True): module_map["shodan"]       = (shodan_mod.run,      (domain,), {"timeout": timeouts_cfg.get("shodan",       30)})
-    if modules_cfg.get("hibp",         True): module_map["hibp"]         = (hibp_mod.run,        (domain,), {"timeout": timeouts_cfg.get("hibp",         20)})
-    if modules_cfg.get("virustotal",   True) or modules_cfg.get("urlscan", True):
-        module_map["vt_urlscan"] = (vt_urlscan_mod.run, (domain,), {"timeout": timeouts_cfg.get("virustotal", 30)})
-    if modules_cfg.get("darkweb",      True): module_map["darkweb"]      = (darkweb_mod.run,     (domain,), {"timeout": timeouts_cfg.get("darkweb",      45)})
-    if modules_cfg.get("dns", True): module_map["dns"] = (dns_mod.run, (domain,), {"timeout": timeouts_cfg.get("dns", 30)})
-    module_map["hudsonrock"] = (hudsonrock_mod.run, (domain,), {"timeout": 30})
-
+    # ── Default results ───────────────────────────────────────
     results = {
-        "subfinder":  {"module": "subfinder",  "subdomains": [], "count": 0, "status": "skipped", "error": None},
-        "harvester":  {"module": "theharvester","emails": [], "hosts": [], "ips": [], "status": "skipped", "error": None},
-        "shodan":     {"module": "shodan",     "hosts": [], "open_ports": [], "high_risk_ports": [], "cves": [], "status": "skipped", "error": None},
-        "hibp":       {"module": "hibp",       "breached_accounts": [], "breach_summary": [], "total_breaches": 0, "status": "skipped", "error": None},
-        "vt_urlscan": {"module": "vt_urlscan", "virustotal": {}, "urlscan": {}, "status": "skipped", "error": None},
-        "darkweb":    {"module": "darkweb",    "mentions": [], "total_mentions": 0, "high_risk_mentions": 0, "status": "skipped", "error": None},
-        "dns": {"module": "dns", "spf": {}, "dmarc": {}, "dkim": {}, "mx": {}, "ns": {}, "issues": [], "status": "skipped", "error": None},
-        "hudsonrock": {"module": "hudsonrock", "compromised_employees": [], "compromised_users": [], "stealer_families": [], "total_employees": 0, "total_users": 0, "status": "skipped", "error": None},
+        "subfinder": {
+            "module": "subfinder", "subdomains": [], "count": 0,
+            "status": "skipped", "error": None,
+        },
+        "harvester": {
+            "module": "theharvester", "emails": [], "hosts": [], "ips": [],
+            "status": "skipped", "error": None,
+        },
+        "shodan": {
+            "module": "censys", "hosts": [], "open_ports": [],
+            "high_risk_ports": [], "cves": [],
+            "status": "skipped", "error": None,
+        },
+        "hibp": {
+            "module": "hibp", "breached_accounts": [], "breach_summary": [],
+            "total_breaches": 0, "status": "skipped", "error": None,
+        },
+        "vt_urlscan": {
+            "module": "vt_urlscan", "virustotal": {}, "urlscan": {},
+            "status": "skipped", "error": None,
+        },
+        "darkweb": {
+            "module": "darkweb", "mentions": [], "total_mentions": 0,
+            "high_risk_mentions": 0, "status": "skipped", "error": None,
+        },
+        "hudsonrock": {
+            "module": "hudsonrock", "compromised_employees": [],
+            "compromised_users": [], "stealer_families": [],
+            "total_employees": 0, "total_users": 0,
+            "status": "skipped", "error": None,
+        },
+        "dns": {
+            "module": "dns", "spf": {}, "dmarc": {}, "dkim": {},
+            "mx": {}, "ns": {}, "issues": [],
+            "status": "skipped", "error": None,
+        },
+        "ssl": {
+            "module": "ssl", "certificates": [], "expired": [],
+            "expiring_soon": [], "self_signed": [], "weak_protocol": [],
+            "unreachable_https": [], "total_checked": 0,
+            "total_issues": 0, "status": "skipped", "error": None,
+        },
     }
 
+    # ── Build parallel module map ─────────────────────────────
+    module_map = {}
+
+    if modules_cfg.get("subfinder", True):
+        module_map["subfinder"] = (
+            subfinder_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("subfinder", 60)},
+        )
+    if modules_cfg.get("theharvester", True):
+        module_map["harvester"] = (
+            harvester_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("theharvester", 120)},
+        )
+    if modules_cfg.get("shodan", True):
+        module_map["shodan"] = (
+            censys_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("shodan", 30)},
+        )
+    if modules_cfg.get("hibp", True):
+        module_map["hibp"] = (
+            hibp_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("hibp", 20)},
+        )
+    if modules_cfg.get("virustotal", True) or modules_cfg.get("urlscan", True):
+        module_map["vt_urlscan"] = (
+            vt_urlscan_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("virustotal", 30)},
+        )
+    if modules_cfg.get("darkweb", True):
+        module_map["darkweb"] = (
+            darkweb_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("darkweb", 45)},
+        )
+    if modules_cfg.get("hudsonrock", True):
+        module_map["hudsonrock"] = (
+            hudsonrock_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("hudsonrock", 30)},
+        )
+    if modules_cfg.get("dns", True):
+        module_map["dns"] = (
+            dns_mod.run, (domain,),
+            {"timeout": timeouts_cfg.get("dns", 30)},
+        )
+
+
+    # ── Run parallel modules ──────────────────────────────────
     log.info(f"Running {len(module_map)} module(s) in parallel...")
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         future_to_key = {
             executor.submit(fn, *args, **kwargs): key
             for key, (fn, args, kwargs) in module_map.items()
@@ -92,12 +161,21 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
             except Exception as e:
                 log.error(f"Module [{key}] raised an exception: {e}")
 
-    # Pass harvested emails into HIBP if available
-    if "hibp" in module_map and results["harvester"].get("emails"):
+    # ── HIBP re-run with harvested emails ─────────────────────
+    if modules_cfg.get("hibp", True) and results["harvester"].get("emails"):
         results["hibp"] = hibp_mod.run(
             domain,
             emails=results["harvester"]["emails"],
             timeout=timeouts_cfg.get("hibp", 20),
+        )
+
+    # ── SSL runs after parallel so subfinder results exist ────
+    if modules_cfg.get("ssl", True):
+        log.info("[SSL] Running certificate checks...")
+        results["ssl"] = ssl_mod.run(
+            domain,
+            subdomains=results["subfinder"].get("subdomains", []),
+            timeout=timeouts_cfg.get("ssl", 45),
         )
 
     # ── Aggregate ─────────────────────────────────────────────
@@ -110,6 +188,7 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
         darkweb=results["darkweb"],
         hudsonrock=results["hudsonrock"],
         dns=results["dns"],
+        ssl=results["ssl"],
         target=domain,
     )
 
@@ -120,7 +199,7 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
     # ── Save JSON dump ────────────────────────────────────────
     if config["output"].get("json_dump", True):
         os.makedirs(output_dir, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
         json_path = os.path.join(output_dir, f"SankofahEye_{domain}_{ts}.json")
         with open(json_path, "w") as jf:
             json.dump({"findings": findings, "scoring": scoring}, jf, indent=2)
@@ -148,25 +227,31 @@ def main():
         epilog="""
 Examples:
   python sankofaeye.py --domain gcb.com.gh
-  python sankofaeye.py --domain mtn.com.gh --output ./reports
+  python sankofaeye.py --domain mtn.com.gh bog.gov.gh --output ./reports
   python sankofaeye.py --domain example.com --config config.yaml
         """
     )
-    parser.add_argument("--domain",  required=True, nargs="+", help="Target domain(s) to scan")
-    parser.add_argument("--output",  default="output", help="Output directory for reports")
-    parser.add_argument("--config",  default="config.yaml", help="Path to config file")
+    parser.add_argument(
+        "--domain", required=True, nargs="+",
+        help="Target domain(s) to scan",
+    )
+    parser.add_argument(
+        "--output", default="output",
+        help="Output directory for reports",
+    )
+    parser.add_argument(
+        "--config", default="config.yaml",
+        help="Path to config file",
+    )
 
     args = parser.parse_args()
 
-    # Validate domain
-    # Load config
     if not os.path.exists(args.config):
         print(f"[ERROR] Config file not found: {args.config}")
         sys.exit(1)
 
     config = load_config(args.config)
 
-    # Validate and scan each domain
     for raw_domain in args.domain:
         valid, domain = validate_domain(raw_domain)
         if not valid:
