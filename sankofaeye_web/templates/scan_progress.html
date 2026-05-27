@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Scan Progress — {{ job.domain }}{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>Scanning {{ job.domain }}</h1>
+    <p>Passive OSINT reconnaissance in progress — no systems are being touched</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:680px; margin:0 auto;">
+
+  <div style="text-align:center; padding:16px 0 24px;">
+    <div id="status-icon" style="font-size:48px; margin-bottom:12px;">🔍</div>
+    <div id="status-text" style="font-size:18px; font-weight:700; color:var(--teal);">
+      Running passive scan...
+    </div>
+    <div id="status-detail" style="font-size:13px; color:var(--muted); margin-top:6px;">
+      Queued — starting shortly
+    </div>
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-bar" style="width:0%"></div>
+  </div>
+  <div style="text-align:right; font-size:11px; color:var(--muted); margin-top:4px;">
+    <span id="progress-pct">0%</span>
+  </div>
+
+  <!-- Modules checklist (decorative — matches real module order) -->
+  <div style="margin-top:24px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+    {% for module in [
+      ('subfinder',   'Subdomain enumeration'),
+      ('harvester',   'Email & host harvesting'),
+      ('censys',      'Exposed services (Censys)'),
+      ('hibp',        'Credential leak check'),
+      ('virustotal',  'Reputation analysis'),
+      ('urlscan',     'Web technology scan'),
+      ('hudsonrock',  'Infostealer data'),
+      ('darkweb',     'Dark web monitoring'),
+      ('dns',         'DNS & email security'),
+      ('ssl',         'SSL/TLS certificates'),
+    ] %}
+    <div id="mod-{{ module[0] }}"
+         style="display:flex; align-items:center; gap:8px;
+                font-size:12px; color:var(--muted); padding:6px 0;
+                border-bottom:1px solid var(--border);">
+      <span class="mod-icon" style="font-size:14px; width:18px; text-align:center;">⬜</span>
+      <span>{{ module[1] }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="result-section" style="display:none; margin-top:24px; text-align:center;">
+    <div id="result-gauge" style="margin-bottom:16px;"></div>
+    <a id="btn-full" href="#" class="btn btn-primary">Download Full Report</a>
+    <a id="btn-exec" href="#" class="btn btn-gold" style="margin-left:8px;">Executive Summary</a>
+    <a href="{{ url_for('scan.dashboard') }}" class="btn btn-outline" style="margin-left:8px;">
+      Back to Dashboard
+    </a>
+  </div>
+
+  <div id="error-section" style="display:none; margin-top:24px;">
+    <div class="alert alert-error" id="error-msg"></div>
+    <a href="{{ url_for('scan.dashboard') }}" class="btn btn-outline">Back to Dashboard</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const JOB_ID    = "{{ job.id }}";
+const POLL_URL  = "{{ url_for('scan.scan_status', job_id=job.id) }}";
+const DOMAIN    = "{{ job.domain }}";
+
+const MODULES = ['subfinder','harvester','censys','hibp','virustotal','urlscan','hudsonrock','darkweb','dns','ssl'];
+const RATING_COLOURS = {critical:'#D32F2F', high:'#F57C00', medium:'#FBC02D', low:'#388E3C'};
+
+let pollInterval;
+let completedModules = 0;
+
+function updateProgress(pct, message) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  if (message) document.getElementById('status-detail').textContent = message;
+
+  // Simulate module completion based on progress
+  const modulesToShow = Math.floor((pct / 100) * MODULES.length);
+  for (let i = 0; i < modulesToShow; i++) {
+    const el = document.getElementById('mod-' + MODULES[i]);
+    if (el) {
+      el.querySelector('.mod-icon').textContent = '✅';
+      el.style.color = '#388E3C';
+    }
+  }
+}
+
+function showResult(score, rating) {
+  document.getElementById('status-icon').textContent = '✅';
+  document.getElementById('status-text').textContent = 'Scan Complete';
+  document.getElementById('status-detail').textContent = DOMAIN + ' — results ready';
+
+  const col = RATING_COLOURS[rating] || '#757575';
+  document.getElementById('result-gauge').innerHTML = `
+    <div style="display:inline-block; text-align:center; padding:16px 24px;
+                background:#F5F5F5; border-radius:8px; border:2px solid ${col};">
+      <div style="font-size:42px; font-weight:800; color:${col};">${score}</div>
+      <div style="font-size:11px; color:#757575;">/100</div>
+      <div style="font-size:13px; font-weight:700; color:${col}; margin-top:4px;">
+        ${rating.toUpperCase()}
+      </div>
+    </div>`;
+
+  document.getElementById('btn-full').href =
+    `/reports/${JOB_ID}/download/full`;
+  document.getElementById('btn-exec').href =
+    `/reports/${JOB_ID}/download/exec`;
+  document.getElementById('result-section').style.display = 'block';
+
+  // Mark all modules complete
+  MODULES.forEach(m => {
+    const el = document.getElementById('mod-' + m);
+    if (el) { el.querySelector('.mod-icon').textContent = '✅'; el.style.color = '#388E3C'; }
+  });
+}
+
+function poll() {
+  fetch(POLL_URL)
+    .then(r => r.json())
+    .then(data => {
+      const { status, progress, message, score, rating, error } = data;
+
+      updateProgress(progress || 0, message);
+
+      if (status === 'complete') {
+        clearInterval(pollInterval);
+        showResult(score, rating);
+        updateProgress(100, 'All modules complete.');
+      } else if (status === 'failed') {
+        clearInterval(pollInterval);
+        document.getElementById('status-icon').textContent = '❌';
+        document.getElementById('status-text').textContent = 'Scan Failed';
+        document.getElementById('status-text').style.color = '#D32F2F';
+        document.getElementById('error-msg').textContent = error || 'An error occurred.';
+        document.getElementById('error-section').style.display = 'block';
+      }
+    })
+    .catch(() => { /* network hiccup — keep polling */ });
+}
+
+// Start polling immediately, then every 3s
+poll();
+pollInterval = setInterval(poll, 3000);
+</script>
+{% endblock %}

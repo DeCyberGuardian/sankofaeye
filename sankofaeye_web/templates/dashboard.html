@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>Dashboard</h1>
+    <p>Welcome back, {{ current_user.email }}</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── 1. SCAN FORM ── -->
+<div class="card">
+  <h2>New Passive Exposure Scan</h2>
+  {% if scans_used >= scans_limit and scans_limit != -1 %}
+  <div class="alert alert-warning">
+    Monthly scan limit reached ({{ scans_used }}/{{ scans_limit }}).
+    <a href="#plans" style="color:var(--teal);">Upgrade your plan</a> for more scans.
+  </div>
+  {% endif %}
+  <form method="POST" action="{{ url_for('scan.submit_scan') }}">
+    <div style="display:flex; gap:12px; align-items:flex-end;">
+      <div class="form-group" style="flex:1; margin-bottom:0;">
+        <label>Target Domain</label>
+        <input type="text" name="domain"
+               placeholder="e.g. ghipss.com or bog.gov.gh"
+               {% if scans_used >= scans_limit and scans_limit != -1 %}disabled{% endif %}
+               style="font-size:15px;">
+      </div>
+      <button type="submit" class="btn btn-primary"
+              {% if scans_used >= scans_limit and scans_limit != -1 %}disabled{% endif %}
+              style="padding:10px 24px; font-size:14px;">
+        Run Scan
+      </button>
+    </div>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;">
+      Passive OSINT only — no active exploitation.
+      {% if scans_limit == -1 %}Unlimited scans (Enterprise).
+      {% else %}Uses {{ scans_used }}/{{ scans_limit }} scans this month.{% endif %}
+    </p>
+  </form>
+</div>
+
+<!-- ── 2. RECENT SCANS ── -->
+<div class="card">
+  <h2>Recent Scans</h2>
+  {% if recent %}
+  <table>
+    <thead>
+      <tr>
+        <th>Domain</th><th>Risk Score</th><th>Status</th><th>Date</th><th>Reports</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in recent %}
+      <tr>
+        <td><strong>{{ job.domain }}</strong></td>
+        <td>
+          {% if job.risk_score is not none %}
+            {% set r = job.risk_rating or 'low' %}
+            <span class="badge badge-{{ r }}">{{ job.risk_score }}/100 {{ r | upper }}</span>
+          {% else %}<span style="color:var(--muted);">—</span>{% endif %}
+        </td>
+        <td>
+          {% if job.status == 'complete' %}<span style="color:var(--green);font-weight:600;">✓ Complete</span>
+          {% elif job.status == 'running' %}<span style="color:var(--teal);">⟳ Running</span>
+          {% elif job.status == 'queued' %}<span style="color:var(--muted);">… Queued</span>
+          {% else %}<span style="color:var(--red);">✗ Failed</span>{% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:12px;">{{ job.created_at.strftime('%d %b %Y %H:%M') }}</td>
+        <td>
+          {% if job.status == 'complete' %}
+            <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='full') }}" class="btn btn-outline btn-sm">Full PDF</a>
+            <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='exec') }}" class="btn btn-gold btn-sm" style="margin-left:4px;">Exec PDF</a>
+          {% elif job.status in ['running', 'queued'] %}
+            <a href="{{ url_for('scan.scan_progress', job_id=job.id) }}" class="btn btn-outline btn-sm">View progress</a>
+          {% else %}
+            <span style="color:var(--muted);font-size:12px;">{{ job.error_msg or '' }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--muted);font-size:13px;text-align:center;padding:24px 0;">
+    No scans yet. Enter a domain above to run your first passive exposure assessment.
+  </p>
+  {% endif %}
+</div>
+
+<!-- ── 3. COMPLIANCE STATUS (from most recent scan) ── -->
+{% if compliance %}
+<div class="card">
+  <h2>Regulatory Compliance — Last Scan</h2>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+    Based on passive scan findings. Intelligence-led guidance only — not legal advice.
+  </p>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
+    {% for fw_key, fw in compliance.items() %}
+    {% set sc = fw.score %}
+    {% set col = fw.colour %}
+    <div style="border:1px solid {{ col }};border-radius:6px;padding:16px;
+                border-top:3px solid {{ col }};">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);
+                  text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+        {{ fw.short }}
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
+        <span style="font-size:32px;font-weight:800;color:{{ col }};">{{ sc }}%</span>
+        <span style="font-size:11px;font-weight:700;color:{{ col }};">
+          {{ fw.status | upper | replace('_',' ') }}
+        </span>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:6px;margin-bottom:8px;">
+        <div style="background:{{ col }};width:{{ sc }}%;height:6px;border-radius:4px;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);">
+        {{ fw.passed }}/{{ fw.total }} controls passing
+        {% if fw.gaps %}
+        — <span style="color:{{ col }};font-weight:600;">{{ fw.gaps|length }} gap(s)</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Top gaps across all frameworks -->
+  {% set all_gaps = [] %}
+  {% for fw_key, fw in compliance.items() %}
+    {% for gap in fw.gaps %}
+      {% if gap.severity in ['critical','high'] %}
+        {% set _ = all_gaps.append({'fw': fw.short, 'gap': gap}) %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {% if all_gaps %}
+  <div style="border-top:1px solid var(--border);padding-top:14px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">
+      Critical / High Compliance Gaps:
+    </div>
+    {% for item in all_gaps[:6] %}
+    {% set sev_c = '#D32F2F' if item.gap.severity == 'critical' else '#F57C00' %}
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;
+                border-bottom:1px solid var(--border);">
+      <span style="font-size:10px;font-weight:700;color:white;background:{{ sev_c }};
+                   padding:2px 7px;border-radius:3px;white-space:nowrap;margin-top:1px;">
+        {{ item.gap.severity | upper }}
+      </span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);">
+          {{ item.fw }} — {{ item.gap.id }}: {{ item.gap.section }}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+          {{ item.gap.remediation[:120] }}…
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── 4. WEST AFRICA THREAT CONTEXT (from most recent scan) ── -->
+{% if wa_intel and wa_intel.relevant_actors %}
+<div class="card">
+  <h2>West Africa Threat Intelligence Context</h2>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+    {{ wa_intel.risk_context[:300] }}{% if wa_intel.risk_context|length > 300 %}…{% endif %}
+  </p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    {% for actor in wa_intel.relevant_actors[:4] %}
+    {% set rel_c = '#D32F2F' if actor.relevance == 'CRITICAL' else '#F57C00' if actor.relevance == 'HIGH' else '#FBC02D' %}
+    <div style="border:1px solid {{ rel_c }};border-radius:4px;padding:8px 12px;
+                min-width:160px;flex:1;">
+      <div style="font-size:10px;font-weight:700;color:{{ rel_c }};
+                  text-transform:uppercase;margin-bottom:3px;">
+        {{ actor.relevance }} relevance
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);">{{ actor.name }}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ actor.motivation }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── 5. MOBILE MONEY EXPOSURE (from most recent scan) ── -->
+{% if momo and momo.exposed_services %}
+<div class="card">
+  <h2>Mobile Money Exposure</h2>
+  {% if momo.operator %}
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+    Operator detected: <strong style="color:var(--teal);">{{ momo.operator }}</strong> —
+    {{ momo.total_exposed }} exposed MoMo service(s) identified.
+  </p>
+  {% endif %}
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+    {% for svc in momo.exposed_services[:8] %}
+    {% set sev_c = '#D32F2F' if svc.severity == 'CRITICAL' else '#F57C00' if svc.severity == 'HIGH' else '#FBC02D' %}
+    <div style="border:1px solid {{ sev_c }};border-radius:4px;padding:7px 11px;">
+      <div style="font-size:9px;font-weight:700;color:{{ sev_c }};text-transform:uppercase;
+                  margin-bottom:2px;">{{ svc.severity }}</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text);">{{ svc.service_name }}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:1px;font-family:monospace;">
+        {{ svc.subdomain[:35] }}
+      </div>
+    </div>
+    {% endfor %}
+    {% if momo.exposed_services|length > 8 %}
+    <div style="display:flex;align-items:center;padding:7px 11px;
+                font-size:11px;color:var(--muted);">
+      +{{ momo.exposed_services|length - 8 }} more in full report
+    </div>
+    {% endif %}
+  </div>
+
+  {% if momo.findings %}
+  <div style="border-top:1px solid var(--border);padding-top:12px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">
+      MoMo Risk Findings:
+    </div>
+    {% for f in momo.findings %}
+    {% set fc = '#D32F2F' if f.severity == 'critical' else '#F57C00' if f.severity == 'high' else '#FBC02D' %}
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;
+                border-bottom:1px solid var(--border);">
+      <span style="font-size:10px;font-weight:700;color:white;background:{{ fc }};
+                   padding:2px 7px;border-radius:3px;white-space:nowrap;margin-top:1px;">
+        {{ f.severity | upper }}
+      </span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);">{{ f.finding }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+          {{ f.recommendation[:130] }}…
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ── 6. PLANS (last — value shown first) ── -->
+<div id="plans" class="card">
+  <h2>Plans</h2>
+  {% if current_user.plan != 'free' %}
+  <div style="text-align:right;margin-bottom:12px;">
+    <a href="{{ url_for('billing.customer_portal') }}"
+       style="font-size:12px;color:var(--teal);">Manage subscription / cancel →</a>
+  </div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+    {% set plans = [
+      ('Free','$0','1 scan/month',false,
+       ['Full PDF report','Executive one-pager','10 OSINT modules'],
+       'free','#008080'),
+      ('Starter','$49/mo','5 scans/month',false,
+       ['Everything in Free','Monthly scheduling','Email report delivery'],
+       'starter','#008080'),
+      ('Professional','$149/mo','20 scans/month',true,
+       ['Everything in Starter','Weekly scans','West Africa threat context','Priority support'],
+       'professional','#008080'),
+      ('Enterprise','$499/mo','Unlimited scans',false,
+       ['Everything in Professional','Aegis-INT DRIB intelligence briefs',
+        'Decision-Ready Intelligence (DRIB)','Dedicated analyst support',
+        'Custom regulatory mapping (BoG / NCA / DPC)'],
+       'enterprise','#FFD700')
+    ] %}
+    {% for plan in plans %}
+    {% set is_popular  = plan[3] %}
+    {% set features    = plan[4] %}
+    {% set plan_key    = plan[5] %}
+    {% set accent      = plan[6] %}
+    {% set is_current  = current_user.plan == plan_key %}
+    {% set is_ent      = plan_key == 'enterprise' %}
+
+    <div style="border:{{ '2px solid '+accent if is_popular or is_ent else '1px solid var(--border)' }};
+                border-radius:6px;padding:18px;
+                background:{{ '#FFFDF0' if is_ent else 'white' if is_popular else 'var(--bg)' }};
+                position:relative;">
+      {% if is_ent %}
+      <div style="position:absolute;top:-1px;left:0;right:0;height:3px;
+                  background:linear-gradient(90deg,#008080,#FFD700);
+                  border-radius:6px 6px 0 0;"></div>
+      <div style="font-size:9px;font-weight:700;color:#B8860B;text-transform:uppercase;
+                  letter-spacing:1px;margin-bottom:4px;">🧠 Aegis-INT Powered</div>
+      {% elif is_popular %}
+      <div style="font-size:9px;font-weight:700;color:var(--teal);text-transform:uppercase;
+                  letter-spacing:1px;margin-bottom:4px;">Most Popular</div>
+      {% endif %}
+
+      <div style="font-size:16px;font-weight:700;color:var(--text);">{{ plan[0] }}</div>
+      <div style="font-size:22px;font-weight:800;
+                  color:{{ '#B8860B' if is_ent else 'var(--teal)' }};
+                  margin:6px 0 3px;">{{ plan[1] }}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">{{ plan[2] }}</div>
+
+      <ul style="font-size:11px;color:var(--text);padding-left:14px;line-height:1.9;margin-bottom:14px;">
+        {% for f in features %}
+        <li {% if 'Aegis' in f or 'DRIB' in f %}style="color:#B8860B;font-weight:600;"{% endif %}>
+          {{ f }}
+        </li>
+        {% endfor %}
+      </ul>
+
+      {% if is_current %}
+        <div style="font-size:12px;font-weight:600;color:var(--green);">✓ Current plan</div>
+      {% elif plan_key == 'free' %}
+        <a href="{{ url_for('billing.customer_portal') }}"
+           class="btn btn-outline"
+           style="width:100%;text-align:center;display:block;font-size:12px;">Downgrade</a>
+      {% elif paystack_enabled or stripe_enabled %}
+        <a href="{{ url_for('billing.checkout', plan=plan_key) }}"
+           class="btn"
+           style="width:100%;text-align:center;display:block;font-size:12px;
+                  background:{{ '#FFD700' if is_ent else '#008080' }};
+                  color:{{ '#005F5F' if is_ent else 'white' }};">
+          {{ 'Get Enterprise' if is_ent else 'Upgrade to '+plan[0] }}
+        </a>
+      {% else %}
+        <a href="mailto:hello@afriwealthci.com?subject=Upgrade to {{ plan[0] }}"
+           class="btn"
+           style="width:100%;text-align:center;display:block;font-size:12px;
+                  background:{{ '#FFD700' if is_ent else 'transparent' }};
+                  color:{{ '#005F5F' if is_ent else 'var(--teal)' }};
+                  border:1px solid {{ '#FFD700' if is_ent else 'var(--teal)' }};">
+          {{ 'Get Enterprise' if is_ent else 'Upgrade to '+plan[0] }}
+        </a>
+        <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:5px;">
+          Contact us to upgrade
+        </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

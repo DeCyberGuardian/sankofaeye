@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>Reports</h1>
+    <p>All completed passive exposure assessments</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Completed Scans</h2>
+  {% if jobs %}
+  <table>
+    <thead>
+      <tr>
+        <th>Domain</th>
+        <th>Risk Score</th>
+        <th>Findings</th>
+        <th>Date</th>
+        <th>Downloads</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td><strong>{{ job.domain }}</strong></td>
+        <td>
+          {% set r = job.risk_rating or 'low' %}
+          <span class="badge badge-{{ r }}">{{ job.risk_score }}/100 {{ r | upper }}</span>
+        </td>
+        <td>
+          <a href="{{ url_for('reports.view_findings', job_id=job.id) }}"
+             style="color:var(--teal); font-size:12px;">View findings →</a>
+        </td>
+        <td style="color:var(--muted); font-size:12px;">
+          {{ job.created_at.strftime('%d %b %Y %H:%M') }}
+        </td>
+        <td style="display:flex; gap:6px; flex-wrap:wrap;">
+          <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='full') }}"
+             class="btn btn-outline btn-sm">Full PDF</a>
+          <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='exec') }}"
+             class="btn btn-gold btn-sm">Exec PDF</a>
+          <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='json') }}"
+             class="btn btn-outline btn-sm">JSON</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="text-align:center; color:var(--muted); padding:24px 0;">
+    No completed reports yet.
+    <a href="{{ url_for('scan.dashboard') }}" style="color:var(--teal);">Run a scan →</a>
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

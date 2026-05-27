@@ -318,6 +318,40 @@ def score(findings: dict, weights: dict) -> dict:
         })
         mitre_techniques.add("T1596.001")
 
+    # ── FTP subdomain / port exposure scoring ─────────────────
+    # Detects ftp.* subdomains passively (T1071.002 already mapped)
+    # Also catches port 21 from Censys if it slips through high_risk_ports
+    ftp_subs = [
+        s for s in findings["subdomains"]["list"]
+        if s.lower().startswith("ftp.") or ".ftp." in s.lower()
+    ]
+    ftp_ports = FTP_PORTS & set(findings['exposed_services'].get('open_ports', []))
+
+    if ftp_subs or ftp_ports:
+        ftp_detail_parts = []
+        if ftp_subs:
+            ftp_detail_parts.append(
+                f"FTP subdomain(s) discovered: {', '.join(ftp_subs[:5])}"
+            )
+        if ftp_ports:
+            ftp_detail_parts.append("Port 21 (FTP) detected open on Censys")
+
+        raw_score += 15
+        finding_details.append({
+            "finding": "FTP exposure detected — unencrypted file transfer",
+            "detail": ". ".join(ftp_detail_parts) + ". FTP transmits credentials in cleartext.",
+            "severity": "high",
+            "mitre": MITRE_MAPPINGS["open_ftp"],
+            "recommendation": (
+                "Replace FTP with SFTP (port 22) or FTPS (port 990) for all file transfers. "
+                "If FTP is not actively used, shut down the service and block port 21 at the "
+                "perimeter firewall. FTP subdomains should be decommissioned or redirected. "
+                "Audit FTP logs for unauthorised access attempts."
+            ),
+            "attack_scenario": get_attack_scenario("open_ftp", target),
+        })
+        mitre_techniques.add("T1071.002")
+
     # ── Mail infrastructure detection ─────────────────────────
     mail_subs = [s for s in subdomain_list if s in MAIL_SUBDOMAINS]
     if mail_subs:
@@ -390,17 +424,8 @@ def score(findings: dict, weights: dict) -> dict:
         })
         mitre_techniques.add("T1021.002")
 
-    if open_ports & FTP_PORTS:
-        raw_score += 10
-        finding_details.append({
-            "finding": "FTP port exposed — unencrypted transfer",
-            "detail": "Port 21 (FTP) is internet-accessible — credentials transmitted in plaintext",
-            "severity": "high",
-            "mitre": MITRE_MAPPINGS["open_ftp"],
-            "recommendation": "Replace FTP with SFTP or FTPS. Block port 21 at perimeter immediately.",
-            "attack_scenario": get_attack_scenario("open_ftp", target),
-        })
-        mitre_techniques.add("T1071.002")
+    # FTP port 21 scoring is handled by the FTP exposure block above
+    # (covers both ftp.* subdomains and open port 21 together)
 
     if open_ports & DATABASE_PORTS:
         pts = weights.get("open_database_port", 1.0) * 25

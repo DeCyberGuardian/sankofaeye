@@ -34,11 +34,57 @@ import modules.hudsonrock_module as hudsonrock_mod
 import modules.dns_module        as dns_mod
 import modules.ssl_module        as ssl_mod
 from reports.pdf_generator import generate as generate_pdf
+from utils.compliance_mapper import map_compliance
+from reports.executive_onepager import generate as generate_exec_onepager
 
 
 def load_config(path: str = "config.yaml") -> dict:
     with open(path, "r") as f:
         return yaml.safe_load(f)
+
+
+def report_only(json_path: str, config: dict, output_dir: str) -> None:
+    """
+    Regenerate PDF reports from an existing JSON findings file.
+    No rescan is performed — useful for analyst edits and report re-runs.
+
+    Usage:
+        python sankofaeye.py --report-only output/SankofahEye_ghipss.com_20260527.json
+    """
+    log = SankofahLogger("sankofaeye")
+
+    if not os.path.exists(json_path):
+        log.error(f"[report-only] JSON file not found: {json_path}")
+        sys.exit(1)
+
+    log.info(f"[report-only] Loading findings from {json_path}")
+
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    findings = data.get("findings")
+    scoring  = data.get("scoring")
+
+    if not findings or not scoring:
+        log.error("[report-only] JSON missing 'findings' or 'scoring' keys")
+        sys.exit(1)
+
+    target = findings.get("target", "unknown")
+    log.info(f"[report-only] Target: {target} | Score: {scoring['score']}/100 {scoring['rating'].upper()}")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    pdf_path = generate_pdf(findings, scoring, config, output_dir)
+    log.info(f"[report-only] Full report:       {pdf_path}")
+
+    try:
+        exec_path = generate_exec_onepager(findings, scoring, config, output_dir)
+        log.info(f"[report-only] Executive summary: {exec_path}")
+    except Exception as e:
+        log.warning(f"[report-only] Executive one-pager skipped: {e}")
+
+    log.info("[report-only] Done.")
+
 
 
 def run_scan(domain: str, config: dict, output_dir: str) -> str:
@@ -205,16 +251,30 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
             json.dump({"findings": findings, "scoring": scoring}, jf, indent=2)
         log.info(f"Raw findings saved → {json_path}")
 
+    # ── Compliance mapping (runs after scoring) ───────────────
+    findings['compliance'] = map_compliance(findings, scoring)
+
     # ── Generate PDF ──────────────────────────────────────────
     pdf_path = None
     if config["output"].get("pdf_report", True):
         pdf_path = generate_pdf(findings, scoring, config, output_dir)
 
+    # ── Generate Executive One-Pager ──────────────────────────
+    # Auto-generated alongside every scan. Single-page plain-English
+    # summary for CISO, board, and non-technical decision-makers.
+    exec_path = None
+    try:
+        exec_path = generate_exec_onepager(findings, scoring, config, output_dir)
+    except Exception as _e:
+        log.warning(f"Executive one-pager skipped: {_e}")
+
     log.info("=" * 60)
     log.info(f"Scan complete. Risk: {scoring['rating'].upper()} ({scoring['score']}/100)")
     log.info(f"Findings: {scoring['finding_count']}")
     if pdf_path:
-        log.info(f"Report: {pdf_path}")
+        log.info(f"Full report:        {pdf_path}")
+    if exec_path:
+        log.info(f"Executive summary:  {exec_path}")
     log.info("=" * 60)
 
     return pdf_path
@@ -232,7 +292,7 @@ Examples:
         """
     )
     parser.add_argument(
-        "--domain", required=True, nargs="+",
+        "--domain", required=False, nargs="+",
         help="Target domain(s) to scan",
     )
     parser.add_argument(
@@ -243,7 +303,10 @@ Examples:
         "--config", default="config.yaml",
         help="Path to config file",
     )
-
+    parser.add_argument(
+        "--report-only", dest="report_only", default=None, metavar="JSON_PATH",
+        help="Regenerate PDF reports from an existing JSON findings file — no rescan",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.config):
@@ -251,6 +314,16 @@ Examples:
         sys.exit(1)
 
     config = load_config(args.config)
+
+    # ── --report-only mode ────────────────────────────────────
+    if args.report_only:
+        report_only(args.report_only, config, args.output)
+        return
+
+    # ── Normal scan mode ──────────────────────────────────────
+    if not args.domain:
+        print("[ERROR] --domain is required unless --report-only is used")
+        sys.exit(1)
 
     for raw_domain in args.domain:
         valid, domain = validate_domain(raw_domain)

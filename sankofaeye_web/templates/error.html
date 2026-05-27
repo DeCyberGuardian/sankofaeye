@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }}{% endblock %}
+{% block content %}
+<div style="text-align:center; padding:60px 0;">
+  <div style="font-size:64px; font-weight:800; color:var(--border);">{{ code }}</div>
+  <div style="font-size:18px; color:var(--muted); margin:12px 0;">{{ message }}</div>
+  <a href="{{ url_for('scan.dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+</div>
+{% endblock %}

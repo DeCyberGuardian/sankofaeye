@@ -7,6 +7,13 @@ into a single structured findings object.
 """
 
 from utils.logger import SankofahLogger
+from utils.tech_fingerprint import fingerprint as tech_fingerprint
+from utils.compliance_mapper import map_compliance
+from modules.momo_module import analyze_momo_exposure
+try:
+    from intel.wa_threatdb_module import cross_reference as wa_cross_reference
+except ImportError:
+    wa_cross_reference = None
 
 log = SankofahLogger("aggregator")
 
@@ -53,6 +60,21 @@ def aggregate(
     # ── Reputation (VirusTotal + URLScan) ─────────────────────
     vt_data      = vt_urlscan.get("virustotal", {})
     urlscan_data = vt_urlscan.get("urlscan", {})
+
+    # ── Technology fingerprinting ──────────────────────────────
+    tech_data = tech_fingerprint(urlscan_data, vt_data)
+
+    # ── Mobile Money exposure analysis ────────────────────────
+    all_subs = list(subfinder_subs | harvester_hosts)
+    momo_data = analyze_momo_exposure(target, all_subs)
+
+    # ── West Africa threat intelligence ───────────────────────
+    wa_intel = {"relevant_actors": [], "relevant_incidents": [], "ioc_matches": [], "risk_context": "", "sector": [], "status": "skipped"}
+    if wa_cross_reference:
+        try:
+            wa_intel = wa_cross_reference(target, {"subdomains": {"list": list(subfinder_subs | harvester_hosts), "count": len(subfinder_subs | harvester_hosts)}})
+        except Exception as _e:
+            pass
 
     malicious_votes  = vt_data.get("malicious_votes", 0)
     suspicious_votes = vt_data.get("suspicious_votes", 0)
@@ -143,6 +165,10 @@ def aggregate(
             "total_employees":       len(compromised_employees),
             "total_users":           len(compromised_users),
         },
+        "tech_fingerprint": tech_data,
+        "wa_intel": wa_intel,
+        "momo_exposure": momo_data,
+        "compliance": {},  # populated after scoring in sankofaeye.py
         "dns_security": {
             "spf":         spf_data,
             "dmarc":       dmarc_data,

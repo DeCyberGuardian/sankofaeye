@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Findings — {{ job.domain }}{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>{{ job.domain }}</h1>
+    <p>Passive exposure findings — {{ job.created_at.strftime('%d %B %Y') }}</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Risk summary -->
+<div class="card" style="display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
+  {% if job.risk_score is not none %}
+  {% set r = job.risk_rating or 'low' %}
+  {% set rc = {'critical':'#D32F2F','high':'#F57C00','medium':'#FBC02D','low':'#388E3C'}[r] %}
+  <div style="text-align:center; min-width:100px;">
+    <div style="font-size:48px; font-weight:800; color:{{ rc }};">{{ job.risk_score }}</div>
+    <div style="font-size:11px; color:var(--muted);">/100</div>
+    <span class="badge badge-{{ r }}" style="margin-top:6px; display:inline-block;">
+      {{ r | upper }}
+    </span>
+  </div>
+  {% endif %}
+  <div style="flex:1;">
+    <h2 style="border:none; margin:0 0 6px; font-size:16px;">Overall Risk Assessment</h2>
+    {% if data %}
+    {% set scoring = data.scoring %}
+    <p style="font-size:13px; color:var(--muted);">
+      {{ scoring.finding_count }} finding(s) identified across
+      {{ scoring.mitre_techniques | length }} MITRE ATT&CK technique(s).
+    </p>
+    {% endif %}
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='full') }}"
+       class="btn btn-primary">Full Report PDF</a>
+    <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='exec') }}"
+       class="btn btn-gold">Executive Summary</a>
+    <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='json') }}"
+       class="btn btn-outline">Raw JSON</a>
+  </div>
+</div>
+
+{% if data %}
+{% set findings_list = data.scoring.findings %}
+
+<!-- Findings list -->
+<div class="card">
+  <h2>Findings ({{ findings_list | length }})</h2>
+  {% for f in findings_list %}
+  {% set sev = f.severity %}
+  {% set sc = {'critical':'#D32F2F','high':'#F57C00','medium':'#FBC02D','low':'#388E3C'}[sev] %}
+  <div style="border:1px solid {{ sc }}; border-radius:4px; margin-bottom:14px; overflow:hidden;">
+    <div style="background:{{ sc }}; padding:8px 14px; display:flex; justify-content:space-between; align-items:center;">
+      <span style="color:white; font-weight:700; font-size:13px;">
+        {{ loop.index }}. {{ f.finding }}
+      </span>
+      <span style="color:white; font-size:11px; opacity:0.85;">{{ sev | upper }}</span>
+    </div>
+    <div style="padding:12px 14px; background:white;">
+      <p style="font-size:12px; color:var(--muted); margin-bottom:6px;">
+        <strong>Detail:</strong> {{ f.detail }}
+      </p>
+      <p style="font-size:12px; color:var(--text); margin-bottom:6px;">
+        <strong>Recommendation:</strong> {{ f.recommendation }}
+      </p>
+      <p style="font-size:11px; color:#1565C0; font-family:monospace;">
+        MITRE {{ f.mitre.id }} — {{ f.mitre.name }}
+      </p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Stats row -->
+<div class="card">
+  <h2>Scan Statistics</h2>
+  {% set fd = data.findings %}
+  <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:16px; text-align:center;">
+    {% for val, lbl in [
+      (fd.subdomains.count,                  'Subdomains'),
+      (fd.exposed_services.total_hosts,       'Exposed Hosts'),
+      (fd.credential_exposure.total_breached, 'Breached Accounts'),
+      (fd.dark_web.total_mentions,            'Dark Web Mentions'),
+      (fd.exposed_services.cves | length,     'CVEs Detected'),
+    ] %}
+    <div style="padding:14px; background:var(--bg); border-radius:4px;
+                border:1px solid var(--border);">
+      <div style="font-size:28px; font-weight:800; color:var(--teal);">{{ val }}</div>
+      <div style="font-size:11px; color:var(--muted); margin-top:4px;">{{ lbl }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <p style="color:var(--muted); text-align:center; padding:24px;">
+    Raw findings data not available. Download the PDF report for full details.
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}
