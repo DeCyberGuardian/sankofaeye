@@ -250,6 +250,14 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
         with open(json_path, "w") as jf:
             json.dump({"findings": findings, "scoring": scoring}, jf, indent=2)
         log.info(f"Raw findings saved → {json_path}")
+        # ── Auto-push to Aegis-INT (Enterprise tier) ─────────────────────
+        try:
+            from aegis_integration import push_to_aegis
+            push_to_aegis(json_path)
+        except ImportError:
+            pass  # aegis_integration not installed — skip silently
+        except Exception as _aegis_exc:
+            log.warning(f"[Aegis-INT] Push failed: {_aegis_exc}")
 
     # ── Compliance mapping (runs after scoring) ───────────────
     findings['compliance'] = map_compliance(findings, scoring)
