@@ -252,6 +252,7 @@
     <li><a href="{{ url_for('scan.dashboard') }}">Dashboard</a></li>
     <li><a href="{{ url_for('reports.list_reports') }}">Reports</a></li>
     <li><span class="plan-badge">{{ current_user.plan }}</span></li>
+    <li><a href="{{ url_for('tracker.alert_settings') }}">🔔 Alerts</a></li>
     <li><a href="{{ url_for('auth.logout') }}">Log out</a></li>
   </ul>
   {% endif %}

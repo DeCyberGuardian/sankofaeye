@@ -40,6 +40,7 @@
        class="btn btn-primary">Full Report PDF</a>
     <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='exec') }}"
        class="btn btn-gold">Executive Summary</a>
+    <a href="{{ url_for('tracker.view', job_id=job.id) }}" class="btn btn-outline">Remediation Tracker</a>
     <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='json') }}"
        class="btn btn-outline">Raw JSON</a>
   </div>

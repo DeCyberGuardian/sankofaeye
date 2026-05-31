@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Remediation Tracker — {{ job.domain }}{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>Remediation Tracker — {{ job.domain }}</h1>
+    <p>Track, assign, and verify security finding remediation</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Summary row ── -->
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;">
+  {% for label, val, col in [
+    ('Open',        summary.counts.open,        '#D32F2F'),
+    ('In Progress', summary.counts.in_progress, '#F57C00'),
+    ('Reopened',    summary.counts.reopened,     '#B71C1C'),
+    ('Verified Fixed', summary.counts.verified,  '#388E3C'),
+    ('Fix Rate',    summary.fix_rate|string + '%', '#008080'),
+  ] %}
+  <div class="card" style="text-align:center;padding:16px;margin-bottom:0;">
+    <div style="font-size:28px;font-weight:800;color:{{ col }};">{{ val }}</div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;
+                letter-spacing:0.5px;margin-top:4px;">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if summary.overdue > 0 %}
+<div class="alert alert-error">
+  ⚠️ {{ summary.overdue }} finding(s) are past their due date.
+</div>
+{% endif %}
+
+<!-- ── Findings table ── -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h2 style="margin:0;">All Findings</h2>
+    <a href="{{ url_for('reports.download_report', job_id=job.id, report_type='full') }}"
+       class="btn btn-outline btn-sm">Download Full Report</a>
+  </div>
+
+  {% if findings %}
+  <table>
+    <thead>
+      <tr>
+        <th>Severity</th>
+        <th>Finding</th>
+        <th>MITRE</th>
+        <th>Status</th>
+        <th>First Seen</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in findings %}
+      {% set sev_c = {'critical':'var(--red)','high':'var(--orange)','medium':'var(--amber)','low':'var(--green)'}[f.severity] %}
+      {% set status_c = {
+        'open':'var(--red)',
+        'in_progress':'var(--orange)',
+        'reopened':'#B71C1C',
+        'resolved':'var(--teal)',
+        'verified':'var(--green)',
+        'accepted':'var(--muted)'
+      }[f.status] %}
+      <tr id="row-{{ loop.index }}">
+        <td>
+          <span class="badge badge-{{ f.severity }}">{{ f.severity | upper }}</span>
+        </td>
+        <td style="max-width:320px;">
+          <div style="font-size:13px;font-weight:600;">{{ f.title[:80] }}</div>
+          {% if f.notes %}
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;">📝 {{ f.notes[:80] }}</div>
+          {% endif %}
+          {% if f.due_date %}
+          <div style="font-size:11px;color:var(--orange);margin-top:2px;">
+            Due: {{ f.due_date[:10] }}
+          </div>
+          {% endif %}
+        </td>
+        <td>
+          <span style="font-family:monospace;font-size:11px;color:var(--teal);">
+            {{ f.mitre }}
+          </span>
+        </td>
+        <td>
+          <span style="font-size:12px;font-weight:700;color:{{ status_c }};">
+            {{ f.status | upper | replace('_',' ') }}
+          </span>
+        </td>
+        <td style="font-size:11px;color:var(--muted);">
+          {{ f.first_seen[:10] }}
+        </td>
+        <td>
+          <select class="status-select" data-fp="{{ f.fingerprint }}"
+                  style="font-size:12px;padding:4px 8px;border:1px solid var(--border);
+                         border-radius:4px;background:white;">
+            {% for s in ['open','in_progress','resolved','accepted'] %}
+            <option value="{{ s }}" {% if f.status == s %}selected{% endif %}>
+              {{ s | replace('_',' ') | title }}
+            </option>
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="text-align:center;color:var(--muted);padding:24px 0;">
+    No findings tracked yet. Run a scan to populate the tracker.
+  </p>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const JOB_ID = "{{ job.id }}";
+
+document.querySelectorAll('.status-select').forEach(sel => {
+  sel.addEventListener('change', async function() {
+    const fp     = this.dataset.fp;
+    const status = this.value;
+
+    const resp = await fetch(`/tracker/${JOB_ID}/update`, {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ fingerprint: fp, status }),
+    });
+
+    const data = await resp.json();
+    if (data.ok) {
+      this.style.borderColor = 'var(--green)';
+      setTimeout(() => this.style.borderColor = '', 2000);
+    } else {
+      alert('Update failed: ' + (data.error || 'Unknown error'));
+    }
+  });
+});
+</script>
+{% endblock %}

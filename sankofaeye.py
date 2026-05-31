@@ -35,6 +35,10 @@ import modules.dns_module        as dns_mod
 import modules.ssl_module        as ssl_mod
 from reports.pdf_generator import generate as generate_pdf
 from utils.compliance_mapper import map_compliance
+from utils.benchmarking import contribute_scan, get_benchmark
+from utils.remediation_tracker import RemediationTracker
+from monitoring.phishing_detector import detect_phishing_infrastructure
+from alerts.alert_engine import dispatch_alert
 from reports.executive_onepager import generate as generate_exec_onepager
 
 
@@ -250,17 +254,91 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
         with open(json_path, "w") as jf:
             json.dump({"findings": findings, "scoring": scoring}, jf, indent=2)
         log.info(f"Raw findings saved → {json_path}")
-        # ── Auto-push to Aegis-INT (Enterprise tier) ─────────────────────
-        try:
-            from aegis_integration import push_to_aegis
-            push_to_aegis(json_path)
-        except ImportError:
-            pass  # aegis_integration not installed — skip silently
-        except Exception as _aegis_exc:
-            log.warning(f"[Aegis-INT] Push failed: {_aegis_exc}")
 
     # ── Compliance mapping (runs after scoring) ───────────────
     findings['compliance'] = map_compliance(findings, scoring)
+
+    # ── Phase 5A: Phishing Infrastructure Detection ─────────────
+    log.info("[Phase5A] Running phishing infrastructure detection...")
+    phishing_intel = {}
+    try:
+        phishing_intel = detect_phishing_infrastructure(domain, days_back=7)
+        findings["phishing_intel"] = phishing_intel
+        if phishing_intel.get("total_threats", 0) > 0:
+            log.warning(
+                f"[Phase5A] 🚨 {phishing_intel['total_threats']} phishing threat(s) detected "
+                f"targeting {domain}"
+            )
+            # Dispatch phishing alert
+            alert_email = config.get("alerts", {}).get("email")
+            alert_phone = config.get("alerts", {}).get("phone")
+            if alert_email or alert_phone:
+                dispatch_alert(
+                    alert_type="PHISHING_ALERT",
+                    domain=domain,
+                    detail=phishing_intel.get("summary", ""),
+                    score=scoring.get("score"),
+                    email=alert_email,
+                    phone=alert_phone,
+                )
+    except Exception as e:
+        log.warning(f"[Phase5A] Phishing detection error: {e}")
+        findings["phishing_intel"] = {}
+
+    # ── Phase 5B: New finding alerts ─────────────────────────────
+    try:
+        new_critical_high = [
+            f for f in scoring.get("findings", [])
+            if f.get("severity") in ("critical", "high")
+        ]
+        alert_email = config.get("alerts", {}).get("email")
+        alert_phone = config.get("alerts", {}).get("phone")
+        if new_critical_high and (alert_email or alert_phone):
+            detail = (
+                f"{len(new_critical_high)} critical/high finding(s): "
+                + "; ".join(f['finding'][:60] for f in new_critical_high[:3])
+            )
+            dispatch_alert(
+                alert_type="NEW_FINDING",
+                domain=domain,
+                detail=detail,
+                score=scoring.get("score"),
+                email=alert_email,
+                phone=alert_phone,
+            )
+    except Exception as e:
+        log.warning(f"[Phase5B] Alert dispatch error: {e}")
+
+    # ── Phase 5C: Peer Benchmarking ───────────────────────────────
+    log.info("[Phase5C] Computing peer benchmarking...")
+    benchmark = {}
+    try:
+        contribute_scan(domain, findings, scoring, findings.get("compliance", {}))
+        benchmark = get_benchmark(domain, findings, scoring, findings.get("compliance", {}))
+        findings["benchmark"] = benchmark
+    except Exception as e:
+        log.warning(f"[Phase5C] Benchmarking error: {e}")
+        findings["benchmark"] = {}
+
+    # ── Phase 5D: Remediation Tracker ────────────────────────────
+    log.info("[Phase5D] Updating remediation tracker...")
+    try:
+        tracker = RemediationTracker(domain, storage_path=os.path.join(
+            output_dir, f"remediation_{domain.replace('.','_')}.json"
+        ))
+        tracker_summary = tracker.ingest_scan(
+            scoring.get("findings", []),
+            scan_date=datetime.utcnow().isoformat()
+        )
+        findings["remediation"] = tracker.get_summary()
+        log.info(
+            f"[Phase5D] Tracker: +{tracker_summary['new_count']} new | "
+            f"{tracker_summary['reopened_count']} reopened | "
+            f"{tracker_summary['verified_count']} verified"
+        )
+    except Exception as e:
+        log.warning(f"[Phase5D] Remediation tracker error: {e}")
+        findings["remediation"] = {}
 
     # ── Generate PDF ──────────────────────────────────────────
     pdf_path = None

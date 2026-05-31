@@ -45,11 +45,13 @@ from routes.auth    import auth_bp
 from routes.scan    import scan_bp
 from routes.reports import reports_bp
 from routes.billing import billing_bp
+from routes.tracker import tracker_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(scan_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(billing_bp)
+app.register_blueprint(tracker_bp)
 
 
 @app.context_processor
@@ -94,6 +96,10 @@ class User(db.Model, UserMixin):
     created_at              = db.Column(db.DateTime, default=datetime.utcnow)
     stripe_customer_id      = db.Column(db.String(64),  nullable=True)
     stripe_subscription_id  = db.Column(db.String(64),  nullable=True)
+    alert_email             = db.Column(db.String(255), nullable=True)
+    alert_phone             = db.Column(db.String(20),  nullable=True)
+    alert_channels          = db.Column(db.String(100), default="email")
+    alert_webhook           = db.Column(db.String(512), nullable=True)
     scans                   = db.relationship("ScanJob", backref="user", lazy=True)
 
     def set_password(self, pw):
@@ -154,4 +160,4 @@ if __name__ == "__main__":
             db.session.add(admin)
             db.session.commit()
             print("[setup] Default admin created: admin@afriwealthci.com")
-    app.run(debug=True, host="0.0.0.0", port=8000)
+    app.run(debug=True, host="0.0.0.0", port=5000)

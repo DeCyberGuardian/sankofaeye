@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Alert Settings{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>Alert Settings</h1>
+    <p>Configure how and where SankofahEye notifies you of new threats</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;">
+  <div class="card">
+    <h2>Notification Channels</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+      Alerts are sent for: new critical/high findings, phishing infrastructure detected,
+      expiring certificates, new breaches, and compliance failures.
+    </p>
+
+    <form method="POST">
+
+      <div class="form-group">
+        <label>Alert Email Address</label>
+        <input type="email" name="alert_email"
+               value="{{ current_user.alert_email or '' }}"
+               placeholder="security@yourorganisation.com">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Can be different from your login email — e.g. your SOC team inbox
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Alert Phone (E.164 format)</label>
+        <input type="text" name="alert_phone"
+               value="{{ current_user.alert_phone or '' }}"
+               placeholder="+233241234567">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Ghana format: +233 followed by your number. Used for WhatsApp and SMS alerts.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Active Channels</label>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">
+          {% set active = (current_user.alert_channels or 'email').split(',') %}
+          {% for ch, icon, desc in [
+            ('email',    '📧', 'Email'),
+            ('whatsapp', '💬', 'WhatsApp'),
+            ('sms',      '📱', 'SMS'),
+            ('webhook',  '🔗', 'Webhook'),
+          ] %}
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
+                        padding:10px 14px;border:1px solid var(--border);border-radius:4px;
+                        font-size:13px;{% if ch in active %}border-color:var(--teal);background:rgba(0,128,128,0.05);{% endif %}">
+            <input type="checkbox" name="channels" value="{{ ch }}"
+                   {% if ch in active %}checked{% endif %}
+                   style="accent-color:var(--teal);">
+            {{ icon }} {{ desc }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Webhook URL (optional — Slack, Teams, or custom)</label>
+        <input type="url" name="webhook_url"
+               value="{{ current_user.alert_webhook or '' }}"
+               placeholder="https://hooks.slack.com/services/...">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Supports Slack incoming webhooks, Microsoft Teams, or any JSON endpoint.
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save Alert Settings</button>
+    </form>
+  </div>
+
+  <!-- Alert type reference -->
+  <div class="card">
+    <h2>What Triggers an Alert</h2>
+    <table>
+      <thead>
+        <tr><th>Alert Type</th><th>Trigger</th><th>Urgency</th></tr>
+      </thead>
+      <tbody>
+        {% for emoji, name, trigger, urgency in [
+          ('🎣', 'Phishing Alert',    'Lookalike domain or live phishing page detected targeting your brand',        'CRITICAL'),
+          ('🔓', 'Breach Detected',   'Staff email address appears in a new breach database',                       'CRITICAL'),
+          ('🚨', 'New Finding',       'New critical or high severity finding in a scheduled scan',                  'HIGH'),
+          ('🕵️', 'Dark Web Alert',    'Your domain or brand mentioned on dark web forums',                         'HIGH'),
+          ('🔐', 'Certificate Expiry','TLS certificate expiring within 14 days',                                   'HIGH'),
+          ('⚠️', 'Compliance Gap',    'New regulatory compliance control failure detected',                         'HIGH'),
+          ('🌐', 'New Subdomain',     'Previously unseen subdomain discovered',                                     'MEDIUM'),
+          ('📊', 'Score Change',      'Risk score changed by 10+ points since last scan',                          'MEDIUM'),
+        ] %}
+        <tr>
+          <td>{{ emoji }} {{ name }}</td>
+          <td style="font-size:12px;color:var(--muted);">{{ trigger }}</td>
+          <td>
+            <span class="badge badge-{{ 'critical' if urgency == 'CRITICAL' else 'high' if urgency == 'HIGH' else 'medium' }}">
+              {{ urgency }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
