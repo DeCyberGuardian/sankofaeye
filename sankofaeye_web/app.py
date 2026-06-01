@@ -23,11 +23,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 # ── Path setup — allow imports from the parent sankofaeye package ──────────────
 BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WEB_DIR   = os.path.dirname(os.path.abspath(__file__))   # sankofaeye_web/
 sys.path.insert(0, BASE_DIR)
+
+# Pin the SQLite DB to an absolute path anchored to this file's location so the
+# same database is used no matter which directory the app is launched from.
+# (CWD-relative "sqlite:///sankofaeye.db" previously created duplicate empty DBs.)
+_INSTANCE_DIR = os.path.join(WEB_DIR, "instance")
+os.makedirs(_INSTANCE_DIR, exist_ok=True)
+_DEFAULT_DB_URI = "sqlite:///" + os.path.join(_INSTANCE_DIR, "sankofaeye.db")
 
 app = Flask(__name__)
 app.config["SECRET_KEY"]             = os.getenv("FLASK_SECRET_KEY", os.urandom(32).hex())
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///sankofaeye.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", _DEFAULT_DB_URI)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SCAN_OUTPUT_DIR"]         = os.path.join(BASE_DIR, "output")
 app.config["MAX_FREE_SCANS_PER_MONTH"] = 1
@@ -46,12 +54,14 @@ from routes.scan    import scan_bp
 from routes.reports import reports_bp
 from routes.billing import billing_bp
 from routes.tracker import tracker_bp
+from routes.intelligence import intelligence_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(scan_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(tracker_bp)
+app.register_blueprint(intelligence_bp)
 
 
 @app.context_processor

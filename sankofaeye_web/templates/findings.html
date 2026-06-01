@@ -50,6 +50,59 @@
     {% include "attack_path_widget.html" %}
 {% endif %}
 
+<!-- ── Phase 5H: Aegis-INT Natural Language Query ── -->
+<div class="card">
+  <h2>🧠 Ask Aegis-INT</h2>
+  {% if current_user.plan in ['professional', 'enterprise'] %}
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+    Ask plain-English questions about these findings. Answers are framed in the
+    West Africa threat context with MITRE technique references.
+  </p>
+
+  <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;">
+    <div style="flex:1;">
+      <textarea id="aegis-question" rows="2"
+        placeholder="e.g. Which findings increase our BEC risk most?"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border);
+               border-radius:4px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+    </div>
+    <button id="aegis-ask" class="btn btn-primary"
+            style="padding:10px 20px;white-space:nowrap;">Ask</button>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+    {% for q in [
+      'Which findings increase our BEC risk most?',
+      'What would OPERA1ER target first?',
+      "What's our biggest BoG compliance gap?",
+      'Write me an executive summary of these findings'
+    ] %}
+    <button class="aegis-suggestion btn btn-outline btn-sm" data-q="{{ q }}"
+            style="font-size:11px;">{{ q }}</button>
+    {% endfor %}
+  </div>
+
+  <div id="aegis-response" style="display:none;margin-top:14px;padding:14px 16px;
+       background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--teal);
+       border-radius:4px;font-size:13px;line-height:1.6;white-space:pre-wrap;
+       color:var(--text);"></div>
+  <div id="aegis-error" style="display:none;margin-top:12px;" class="alert alert-error"></div>
+  {% else %}
+  <div style="text-align:center;padding:24px 16px;">
+    <div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:6px;">
+      Upgrade to Professional to query your findings with AI
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+      Ask Aegis-INT plain-English questions about your exposure — BEC risk,
+      threat-actor targeting, compliance gaps, executive summaries — answered in
+      the West Africa threat context.
+    </p>
+    <a href="{{ url_for('billing.checkout', plan='professional') }}"
+       class="btn btn-gold">Upgrade to Professional</a>
+  </div>
+  {% endif %}
+</div>
+
 {% if data %}
 {% set findings_list = data.scoring.findings %}
 
@@ -110,4 +163,67 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+{% if current_user.plan in ['professional', 'enterprise'] %}
+<script>
+(function () {
+  const jobId   = {{ job.id | tojson }};
+  const qInput  = document.getElementById('aegis-question');
+  const askBtn  = document.getElementById('aegis-ask');
+  const respBox = document.getElementById('aegis-response');
+  const errBox  = document.getElementById('aegis-error');
+
+  function setLoading(on) {
+    askBtn.disabled = on;
+    askBtn.textContent = on ? 'Thinking…' : 'Ask';
+  }
+
+  async function ask() {
+    const question = (qInput.value || '').trim();
+    errBox.style.display = 'none';
+    if (!question) {
+      qInput.focus();
+      return;
+    }
+    setLoading(true);
+    respBox.style.display = 'block';
+    respBox.textContent = 'Analysing findings…';
+    try {
+      const res = await fetch({{ url_for('intelligence.query') | tojson }}, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId, question: question }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        respBox.style.display = 'none';
+        errBox.textContent = data.message || data.error || 'Query failed.';
+        errBox.style.display = 'block';
+      } else {
+        respBox.textContent = data.answer || 'No answer returned.';
+      }
+    } catch (e) {
+      respBox.style.display = 'none';
+      errBox.textContent = 'Network error — please try again.';
+      errBox.style.display = 'block';
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  askBtn.addEventListener('click', ask);
+  qInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask();
+  });
+  document.querySelectorAll('.aegis-suggestion').forEach(function (b) {
+    b.addEventListener('click', function () {
+      qInput.value = b.getAttribute('data-q');
+      ask();
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
