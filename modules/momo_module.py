@@ -1,5 +1,5 @@
 """
-SankofahEye — Mobile Money Exposure Module
+SankofaEye — Mobile Money Exposure Module
 AfriWealth Cyber Intelligence
 
 Passive reconnaissance module specifically for Ghana's mobile money ecosystem.
@@ -23,9 +23,9 @@ MITRE ATT&CK mappings:
 """
 
 import re
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("momo_module")
+log = SankofaLogger("momo_module")
 
 
 # ── MoMo subdomain patterns ────────────────────────────────────────────────────

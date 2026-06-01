@@ -46,6 +46,10 @@
   </div>
 </div>
 
+{% if attack_path %}
+    {% include "attack_path_widget.html" %}
+{% endif %}
+
 {% if data %}
 {% set findings_list = data.scoring.findings %}
 

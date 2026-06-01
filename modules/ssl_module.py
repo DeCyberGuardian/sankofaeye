@@ -1,5 +1,5 @@
 """
-SankofahEye — SSL/TLS Certificate Module
+SankofaEye — SSL/TLS Certificate Module
 AfriWealth Cyber Intelligence
 
 Passively checks SSL/TLS certificate validity, expiry, and configuration
@@ -13,9 +13,9 @@ import concurrent.futures
 from datetime import datetime, timezone
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend  # type: ignore
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("ssl")
+log = SankofaLogger("ssl")
 
 # Days before expiry to flag as warning vs critical
 EXPIRY_CRITICAL_DAYS = 14

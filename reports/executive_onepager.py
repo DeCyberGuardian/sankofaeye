@@ -1,5 +1,5 @@
 """
-SankofahEye — Executive One-Pager
+SankofaEye — Executive One-Pager
 AfriWealth Cyber Intelligence
 
 Generates a single-page C-suite PDF from the same scan data as the
@@ -44,10 +44,10 @@ from reportlab.platypus import (
 from reportlab.graphics.shapes import Drawing, Wedge, Rect, String
 from reportlab.platypus import Image as RLImage
 
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 from utils.email_scorer import score_email_security
 
-log = SankofahLogger("exec_onepager")
+log = SankofaLogger("exec_onepager")
 
 # ── Brand colours ──────────────────────────────────────────────────────────────
 C_PRIMARY  = colors.HexColor("#008080")
@@ -323,7 +323,7 @@ def _hf(canvas, doc, target: str, date_str: str, config: dict):
     canvas.setFont("Helvetica", 7)
     canvas.setFillColor(colors.HexColor("#AAAAAA"))
     canvas.drawString(MARGIN + 60, h - 8 * mm,
-                      "| SankofahEye — Executive Security Briefing")
+                      "| SankofaEye — Executive Security Briefing")
     canvas.drawRightString(w - MARGIN, h - 8 * mm,
                            f"Target: {target}   |   {date_str}")
 
@@ -392,7 +392,7 @@ def generate(
     Args:
         findings:   Full aggregated findings dict
         scoring:    Risk scoring dict
-        config:     SankofahEye config dict
+        config:     SankofaEye config dict
         output_dir: Directory to write the PDF
 
     Returns:
@@ -401,7 +401,7 @@ def generate(
     os.makedirs(output_dir, exist_ok=True)
     target    = findings.get("target", "unknown")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename  = f"SankofahEye_{target}_executive_summary_{timestamp}.pdf"
+    filename  = f"SankofaEye_{target}_executive_summary_{timestamp}.pdf"
     filepath  = os.path.join(output_dir, filename)
 
     log.info(f"[ExecOnePager] Generating → {filepath}")
@@ -417,7 +417,7 @@ def generate(
         rightMargin=MARGIN,
         topMargin=19 * mm,
         bottomMargin=13 * mm,
-        title=f"SankofahEye Executive Summary — {target}",
+        title=f"SankofaEye Executive Summary — {target}",
         author=config.get("brand", {}).get("name", "AfriWealth Cyber Intelligence"),
     )
 

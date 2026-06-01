@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}SankofahEye{% endblock %} — AfriWealth Cyber Intelligence</title>
+  <title>{% block title %}SankofaEye{% endblock %} — AfriWealth Cyber Intelligence</title>
   <style>
     :root {
       --teal:    #008080;
@@ -243,7 +243,7 @@
 <nav>
   <a href="{% if current_user.is_authenticated %}{{ url_for('scan.dashboard') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="brand">
     <div>
-      <div class="brand-name">SankofahEye</div>
+      <div class="brand-name">SankofaEye</div>
       <div class="brand-sub">AfriWealth Cyber Intelligence</div>
     </div>
   </a>
@@ -272,7 +272,7 @@
 </div>
 
 <footer>
-  SankofahEye v1.0.0 &nbsp;|&nbsp; <a href="https://afriwealthci.com">AfriWealth Cyber Intelligence</a>
+  SankofaEye v1.0.0 &nbsp;|&nbsp; <a href="https://afriwealthci.com">AfriWealth Cyber Intelligence</a>
   &nbsp;|&nbsp; Passive reconnaissance only — no active exploitation
 </footer>
 

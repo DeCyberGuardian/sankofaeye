@@ -1,4 +1,4 @@
-# SankofahEye 👁️
+# SankofaEye 👁️
 ### Passive Exposure Intelligence Platform
 **By AfriWealth Cyber Intelligence**
 
@@ -14,7 +14,7 @@
 
 ---
 
-SankofahEye is a **passive exposure intelligence platform** built for cyber threat intelligence practitioners operating in Ghana and the broader West African digital ecosystem.
+SankofaEye is a **passive exposure intelligence platform** built for cyber threat intelligence practitioners operating in Ghana and the broader West African digital ecosystem.
 
 It chains 10 open-source intelligence modules to produce a structured **Exposure Intelligence Report** — branded, PDF-formatted, with MITRE ATT&CK mappings, West Africa threat actor context, mobile money exposure analysis, regulatory compliance mapping, phishing infrastructure detection, and multi-channel security alerting.
 
@@ -26,7 +26,7 @@ Available as a **CLI tool** and a **Flask web application** with multi-user supp
 
 ## Contents
 
-- [What SankofahEye Produces](#what-sankofaeye-produces)
+- [What SankofaEye Produces](#what-sankofaeye-produces)
 - [Intelligence Modules](#intelligence-modules)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -40,15 +40,15 @@ Available as a **CLI tool** and a **Flask web application** with multi-user supp
 
 ---
 
-## What SankofahEye Produces
+## What SankofaEye Produces
 
 Every scan generates two files — a full intelligence report and a raw data export:
 
 ```
 output/
-├── SankofahEye_ghipss.com_20260527_113800.pdf                  ← 14-page branded intelligence report
-├── SankofahEye_ghipss.com_20260527_113800_executive_summary.pdf ← Board-ready one-pager
-└── SankofahEye_ghipss.com_20260527_113800.json                 ← Structured findings (machine-readable)
+├── SankofaEye_ghipss.com_20260527_113800.pdf                  ← 14-page branded intelligence report
+├── SankofaEye_ghipss.com_20260527_113800_executive_summary.pdf ← Board-ready one-pager
+└── SankofaEye_ghipss.com_20260527_113800.json                 ← Structured findings (machine-readable)
 ```
 
 ### Full Intelligence Report (14+ pages)
@@ -93,7 +93,7 @@ Single-page PDF for CISO and board. Plain English, no CVE numbers. Risk score, t
 | 9 | DNS Security | dnspython | SPF, DMARC, DKIM, MX, NS records | No |
 | 10 | SSL/TLS | ssl / requests | Certificate validity, expiry, weak protocols | No |
 
-**Ghana-specific modules (unique to SankofahEye):**
+**Ghana-specific modules (unique to SankofaEye):**
 
 | Module | What It Does |
 |--------|-------------|
@@ -236,7 +236,7 @@ python sankofaeye.py --domain gcb.com.gh mtn.com.gh bog.gov.gh
 python sankofaeye.py --domain example.com --output ./reports
 
 # Regenerate PDFs from an existing JSON (no rescan)
-python sankofaeye.py --report-only output/SankofahEye_ghipss.com_20260527.json
+python sankofaeye.py --report-only output/SankofaEye_ghipss.com_20260527.json
 
 # Custom config file
 python sankofaeye.py --domain example.com --config config.yaml
@@ -249,7 +249,7 @@ python sankofaeye.py --domain example.com --config config.yaml
 python sankofaeye_web/app.py
 
 # Access at http://localhost:8080
-# Default admin: admin@afriwealthci.com / SankofahEye2026!
+# Default admin: admin@afriwealthci.com / SankofaEye2026!
 ```
 
 > **macOS note:** Disable AirPlay Receiver in System Settings if port 5000 is in use,
@@ -372,7 +372,7 @@ sankofaeye/
 
 ```yaml
 brand:
-  tool:     SankofahEye
+  tool:     SankofaEye
   version:  1.0.0
   name:     AfriWealth Cyber Intelligence
   analyst:  DeCyberGuardian
@@ -434,13 +434,13 @@ Payment via **Paystack** (MTN MoMo, Telecel Cash, AirtelTigo Money, card, bank t
 
 > **Authorised use only.**
 
-SankofahEye performs passive reconnaissance only — no packets are sent to target systems.
+SankofaEye performs passive reconnaissance only — no packets are sent to target systems.
 
 - Only scan domains you **own** or have **explicit written authorisation** to assess
 - Handle credential data and report outputs with strict access controls — all reports are **CONFIDENTIAL**
 - Comply with Ghana's **Data Protection Act 2012 (Act 843)** when processing personal data from breach results
 - Respect all API provider terms of service and rate limits
-- SankofahEye findings are intelligence, not legal advice
+- SankofaEye findings are intelligence, not legal advice
 
 ---
 

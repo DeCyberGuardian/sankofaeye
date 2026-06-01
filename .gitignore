@@ -23,3 +23,25 @@ logs/
 
 # VSCode
 .vscode/
+# Secrets & env
+.env
+*.env
+
+# Databases
+*.db
+instance/
+sankofaeye_web/instance/
+
+# Generated scan output
+output/
+logs/
+*.pdf
+*.json
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store

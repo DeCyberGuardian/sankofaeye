@@ -1,14 +1,14 @@
 """
-SankofahEye — Risk Scoring Engine
+SankofaEye — Risk Scoring Engine
 AfriWealth Cyber Intelligence
 
 Calculates an overall risk score (0–100), per-finding severity ratings,
 MITRE ATT&CK mappings, and attack scenario narratives per finding.
 """
 
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("risk_scorer")
+log = SankofaLogger("risk_scorer")
 EXPIRY_CRITICAL_DAYS = 14
 EXPIRY_WARNING_DAYS  = 30
 

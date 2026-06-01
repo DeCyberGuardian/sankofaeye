@@ -1,5 +1,5 @@
 """
-SankofahEye — West Africa Threat Intelligence Cross-Reference
+SankofaEye — West Africa Threat Intelligence Cross-Reference
 AfriWealth Cyber Intelligence
 
 Loads wa_threatdb.json and cross-references scan findings against:
@@ -7,15 +7,15 @@ Loads wa_threatdb.json and cross-references scan findings against:
   - Historical incidents relevant to the target
   - Regional IOC patterns (lookalike domains, email patterns)
 
-This is SankofahEye's competitive moat — no Western tool has this context.
+This is SankofaEye's competitive moat — no Western tool has this context.
 Output is appended to the findings dict and rendered in both PDFs.
 """
 
 import os
 import json
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("wa_threatdb")
+log = SankofaLogger("wa_threatdb")
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "intel", "wa_threatdb.json")

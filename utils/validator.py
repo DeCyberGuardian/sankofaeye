@@ -1,5 +1,5 @@
 """
-SankofahEye — Input Validator
+SankofaEye — Input Validator
 AfriWealth Cyber Intelligence
 """
 

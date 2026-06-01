@@ -1,5 +1,5 @@
 """
-SankofahEye — Dark Web Search Module
+SankofaEye — Dark Web Search Module
 AfriWealth Cyber Intelligence
 
 Passively searches dark web indexes for mentions of the target domain.
@@ -12,9 +12,9 @@ No direct Tor connections are made. All searches are passive.
 import os
 import time
 import requests
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("darkweb")
+log = SankofaLogger("darkweb")
 
 AHMIA_BASE = "https://ahmia.fi/search/"
 
@@ -36,7 +36,7 @@ def search_ahmia(domain: str, timeout: int = 45) -> list:
         resp = requests.get(
             AHMIA_BASE,
             params={"q": domain},
-            headers={"User-Agent": "SankofahEye-AfriWealthCI/1.0"},
+            headers={"User-Agent": "SankofaEye-AfriWealthCI/1.0"},
             timeout=timeout,
         )
         if resp.status_code != 200:

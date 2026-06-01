@@ -1,5 +1,5 @@
 """
-SankofahEye — Remediation Tracker
+SankofaEye — Remediation Tracker
 AfriWealth Cyber Intelligence
 
 Tracks the status of security findings across scans.
@@ -7,7 +7,7 @@ Clients mark findings as "In Progress" or "Resolved" via the
 web interface. The next scheduled scan automatically verifies
 whether the fix actually worked.
 
-This turns SankofahEye from a one-time report into a
+This turns SankofaEye from a one-time report into a
 security programme management tool. Clients don't cancel
 tools that track their progress.
 
@@ -26,9 +26,9 @@ import os
 import sys
 import json
 from datetime import datetime
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("remediation_tracker")
+log = SankofaLogger("remediation_tracker")
 
 
 # ── Fingerprint builder ────────────────────────────────────────────────────────

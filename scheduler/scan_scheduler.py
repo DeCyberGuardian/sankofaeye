@@ -1,5 +1,5 @@
 """
-SankofahEye — Scheduled Scan Scheduler
+SankofaEye — Scheduled Scan Scheduler
 AfriWealth Cyber Intelligence
 
 Runs recurring passive scans per user domain on a schedule:
@@ -7,7 +7,7 @@ Runs recurring passive scans per user domain on a schedule:
   - Professional plan: weekly
 
 On each scheduled scan:
-  1. Runs full SankofahEye pipeline
+  1. Runs full SankofaEye pipeline
   2. Compares findings against previous scan (delta)
   3. If new findings detected → sends email report
   4. Always saves full PDF to user's account
@@ -135,7 +135,7 @@ def send_report_email(
 
     # ── Build email body ───────────────────────────────────────
     subject = (
-        f"[SankofahEye] {domain} — Scheduled Scan Complete "
+        f"[SankofaEye] {domain} — Scheduled Scan Complete "
         f"({score}/100 {rating})"
         + (f" — {new_ct} NEW finding(s)" if new_ct else "")
     )
@@ -144,7 +144,7 @@ def send_report_email(
     <html><body style="font-family:Arial,sans-serif;color:#212121;max-width:600px;margin:0 auto;">
     
     <div style="background:#005F5F;padding:20px;border-bottom:3px solid #FFD700;">
-      <h1 style="color:white;margin:0;font-size:20px;">SankofahEye</h1>
+      <h1 style="color:white;margin:0;font-size:20px;">SankofaEye</h1>
       <p style="color:#FFD700;margin:4px 0 0;font-size:12px;">
         AfriWealth Cyber Intelligence — Scheduled Scan Report
       </p>
@@ -226,8 +226,8 @@ def send_report_email(
 
     # Attach PDFs
     for path, name in [
-        (pdf_path,  f"SankofahEye_{domain}_full_report.pdf"),
-        (exec_path, f"SankofahEye_{domain}_executive_summary.pdf"),
+        (pdf_path,  f"SankofaEye_{domain}_full_report.pdf"),
+        (exec_path, f"SankofaEye_{domain}_executive_summary.pdf"),
     ]:
         if path and os.path.exists(path):
             with open(path, "rb") as f:
@@ -269,7 +269,7 @@ def run_scheduled_scan(user_email: str, user_id: int, domain: str,
         exec_path = json_path = None
         for fname in sorted(os.listdir(output_dir), reverse=True):
             fpath = os.path.join(output_dir, fname)
-            if fname.startswith(f"SankofahEye_{domain}_") and fname.endswith(".json") and not json_path:
+            if fname.startswith(f"SankofaEye_{domain}_") and fname.endswith(".json") and not json_path:
                 json_path = fpath
             if "executive_summary" in fname and fname.endswith(".pdf") and not exec_path:
                 exec_path = fpath
@@ -326,7 +326,7 @@ def run_all_scheduled(app_instance):
                 config = yaml.safe_load(f)
         else:
             log.warning("[Scheduler] config.yaml not found — using defaults")
-            config = {"brand": {"tool": "SankofahEye", "version": "1.0.0",
+            config = {"brand": {"tool": "SankofaEye", "version": "1.0.0",
                                 "name": "AfriWealth Cyber Intelligence",
                                 "analyst": "DeCyberGuardian",
                                 "website": "https://afriwealthci.com"},
@@ -412,7 +412,7 @@ def run_all_scheduled(app_instance):
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    log.info("[Scheduler] SankofahEye scan scheduler starting...")
+    log.info("[Scheduler] SankofaEye scan scheduler starting...")
 
     # Import Flask app for DB context
     sys.path.insert(0, os.path.join(BASE_DIR, "sankofaeye_web"))

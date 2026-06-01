@@ -1,0 +1,92 @@
+{# ── Phase 5E: Attack Path Widget ──────────────────────────────────
+   Expects `attack_path` in template context (dict from build_attack_path).
+   Included by findings.html; reused on dashboard.html.
+   Safe to include even when attack_path is falsy (renders nothing).        #}
+{% if attack_path and attack_path.has_path %}
+{% set sev_colours = {'critical':'#D32F2F','high':'#F57C00','medium':'#FBC02D','low':'#388E3C'} %}
+<div class="card">
+  <h2>Inferred Attack Path</h2>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:6px;">
+    Reconstructed adversary kill-chain mapped to MITRE ATT&CK.
+    Inferential only — derived from passive exposure signals, not active testing.
+  </p>
+  <p style="font-size:13px;color:var(--text);margin-bottom:16px;
+            border-left:3px solid var(--teal);padding-left:12px;">
+    {{ attack_path.summary }}
+  </p>
+
+  {# ── Crown-jewel risk banner ── #}
+  {% set cj = attack_path.crown_jewel_risk %}
+  {% set cj_c = '#D32F2F' if cj.startswith('HIGH') else '#F57C00' if cj.startswith('MEDIUM') or cj.startswith('LOW–MEDIUM') else '#388E3C' %}
+  <div style="background:var(--bg);border:1px solid {{ cj_c }};border-left:4px solid {{ cj_c }};
+              border-radius:4px;padding:10px 14px;margin-bottom:18px;">
+    <span style="font-size:11px;font-weight:700;color:{{ cj_c }};text-transform:uppercase;
+                 letter-spacing:0.5px;">Crown-Jewel Risk</span>
+    <div style="font-size:12px;color:var(--text);margin-top:3px;">{{ cj }}</div>
+  </div>
+
+  {# ── Kill-chain stages ── #}
+  <div style="position:relative;">
+    {% for stage in attack_path.stages %}
+    {% set sc = sev_colours.get(stage.severity, '#888') %}
+    <div style="display:flex;gap:14px;margin-bottom:{{ '0' if loop.last else '4px' }};">
+      {# Stage number + connector spine #}
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+        <div style="width:30px;height:30px;border-radius:50%;background:{{ sc }};
+                    color:white;font-weight:800;font-size:13px;
+                    display:flex;align-items:center;justify-content:center;">
+          {{ stage.step }}
+        </div>
+        {% if not loop.last %}
+        <div style="width:2px;flex:1;min-height:40px;background:var(--border);margin:2px 0;"></div>
+        {% endif %}
+      </div>
+
+      {# Stage card #}
+      <div style="flex:1;border:1px solid var(--border);border-left:3px solid {{ sc }};
+                  border-radius:4px;padding:11px 14px;margin-bottom:14px;background:white;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;
+                    gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+          <div>
+            <span style="font-size:10px;font-weight:700;color:{{ sc }};
+                         text-transform:uppercase;letter-spacing:0.5px;">
+              {{ stage.tactic }}
+            </span>
+            <span style="font-size:10px;color:var(--muted);font-family:monospace;
+                         margin-left:6px;">{{ stage.mitre_tactic }}</span>
+          </div>
+          <span style="font-size:9px;font-weight:700;color:white;background:{{ sc }};
+                       padding:2px 7px;border-radius:3px;">{{ stage.severity | upper }}</span>
+        </div>
+
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">
+          {{ stage.title }}
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;">
+          {{ stage.detail }}
+        </div>
+
+        {% if stage.evidence %}
+        <ul style="font-size:11px;color:var(--text);padding-left:16px;
+                   margin:0 0 8px;line-height:1.7;">
+          {% for ev in stage.evidence %}
+          <li>{{ ev }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          {% for t in stage.techniques %}
+          <span style="font-size:10px;font-family:monospace;color:#1565C0;
+                       background:rgba(21,101,192,0.08);border:1px solid rgba(21,101,192,0.2);
+                       border-radius:3px;padding:2px 6px;">
+            {{ t.id }} · {{ t.name }}
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}

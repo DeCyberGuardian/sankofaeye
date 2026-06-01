@@ -1,5 +1,5 @@
 """
-SankofahEye — Regulatory Compliance Mapper
+SankofaEye — Regulatory Compliance Mapper
 AfriWealth Cyber Intelligence
 
 Maps passive scan findings to three Ghana regulatory frameworks:
@@ -24,9 +24,9 @@ For each framework, produces:
 This is intelligence — not legal advice.
 """
 
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("compliance_mapper")
+log = SankofaLogger("compliance_mapper")
 
 
 # ─── Framework definitions ─────────────────────────────────────────────────────

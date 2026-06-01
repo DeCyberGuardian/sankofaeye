@@ -1,5 +1,5 @@
 """
-SankofahEye — Have I Been Pwned Module
+SankofaEye — Have I Been Pwned Module
 AfriWealth Cyber Intelligence
 
 Checks whether email addresses associated with the target domain
@@ -11,13 +11,13 @@ Requires a paid HIBP API key.
 import os
 import time
 import requests
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("hibp")
+log = SankofaLogger("hibp")
 
 HIBP_BASE = "https://haveibeenpwned.com/api/v3"
 HEADERS_TEMPLATE = {
-    "User-Agent": "SankofahEye-AfriWealthCI/1.0",
+    "User-Agent": "SankofaEye-AfriWealthCI/1.0",
     "hibp-api-key": "",
 }
 

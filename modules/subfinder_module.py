@@ -1,5 +1,5 @@
 """
-SankofahEye — Subfinder Module
+SankofaEye — Subfinder Module
 AfriWealth Cyber Intelligence
 
 Wraps the Subfinder binary to passively enumerate subdomains.
@@ -8,9 +8,9 @@ Install: go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@la
 
 import subprocess
 import shutil
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("subfinder")
+log = SankofaLogger("subfinder")
 
 
 def run(domain: str, timeout: int = 60) -> dict:

@@ -1,5 +1,5 @@
 """
-SankofahEye Web — Remediation Tracker Routes
+SankofaEye Web — Remediation Tracker Routes
 Handles finding status updates, tracker view, and alert settings.
 """
 

@@ -1,12 +1,12 @@
 """
-SankofahEye — Data Aggregator
+SankofaEye — Data Aggregator
 AfriWealth Cyber Intelligence
 
 Normalises and merges raw output from all recon modules
 into a single structured findings object.
 """
 
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 from utils.tech_fingerprint import fingerprint as tech_fingerprint
 from utils.compliance_mapper import map_compliance
 from modules.momo_module import analyze_momo_exposure
@@ -15,7 +15,7 @@ try:
 except ImportError:
     wa_cross_reference = None
 
-log = SankofahLogger("aggregator")
+log = SankofaLogger("aggregator")
 
 
 def aggregate(
@@ -169,6 +169,9 @@ def aggregate(
         "wa_intel": wa_intel,
         "momo_exposure": momo_data,
         "compliance": {},  # populated after scoring in sankofaeye.py
+        "attack_path": {},          # populated by Phase 5E in sankofaeye.py
+        "persona_monitoring": {},   # populated by Phase 5F in sankofaeye.py
+        "supplier_risk": {},        # populated by Phase 5G in sankofaeye.py
         "dns_security": {
             "spf":         spf_data,
             "dmarc":       dmarc_data,

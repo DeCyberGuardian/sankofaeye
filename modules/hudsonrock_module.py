@@ -1,5 +1,5 @@
 """
-SankofahEye — HudsonRock Cavalier Module
+SankofaEye — HudsonRock Cavalier Module
 AfriWealth Cyber Intelligence
 
 Checks if the target domain appears in infostealer malware logs.
@@ -10,9 +10,9 @@ aggregated by HudsonRock's threat intelligence platform.
 """
 
 import requests
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("hudsonrock")
+log = SankofaLogger("hudsonrock")
 
 HUDSONROCK_BASE = "https://cavalier.hudsonrock.com/api/json/v2"
 
@@ -36,7 +36,7 @@ def run(domain: str, timeout: int = 30) -> dict:
         resp = requests.get(
             f"{HUDSONROCK_BASE}/osint-tools/urls-by-domain",
             params={"domain": domain},
-            headers={"User-Agent": "SankofahEye-AfriWealthCI/1.0"},
+            headers={"User-Agent": "SankofaEye-AfriWealthCI/1.0"},
             timeout=timeout,
         )
 

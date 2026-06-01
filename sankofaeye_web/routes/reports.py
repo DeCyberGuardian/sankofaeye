@@ -4,6 +4,8 @@ import os
 import json
 from flask import Blueprint, render_template, send_file, abort, current_app
 from flask_login import login_required, current_user
+from utils.attack_path import build_attack_path
+
 
 reports_bp = Blueprint("reports", __name__)
 
@@ -27,13 +29,13 @@ def download_report(job_id, report_type):
 
     if report_type == "full" and job.pdf_path and os.path.exists(job.pdf_path):
         return send_file(job.pdf_path, as_attachment=True,
-                         download_name=f"SankofahEye_{job.domain}_full_report.pdf")
+                         download_name=f"SankofaEye_{job.domain}_full_report.pdf")
     elif report_type == "exec" and job.exec_path and os.path.exists(job.exec_path):
         return send_file(job.exec_path, as_attachment=True,
-                         download_name=f"SankofahEye_{job.domain}_executive_summary.pdf")
+                         download_name=f"SankofaEye_{job.domain}_executive_summary.pdf")
     elif report_type == "json" and job.json_path and os.path.exists(job.json_path):
         return send_file(job.json_path, as_attachment=True,
-                         download_name=f"SankofahEye_{job.domain}_findings.json",
+                         download_name=f"SankofaEye_{job.domain}_findings.json",
                          mimetype="application/json")
     abort(404)
 
@@ -49,4 +51,20 @@ def view_findings(job_id):
         with open(job.json_path, "r") as f:
             findings_data = json.load(f)
 
-    return render_template("findings.html", job=job, data=findings_data)
+    # ── Phase 5E: reconstruct inferred attack path ──────────────
+    attack_path = None
+    if findings_data and findings_data.get("findings") and findings_data.get("scoring"):
+        try:
+            attack_path = build_attack_path(
+                findings_data["findings"],
+                findings_data["scoring"],
+            )
+        except Exception:
+            attack_path = None
+
+    return render_template(
+        "findings.html",
+        job=job,
+        data=findings_data,
+        attack_path=attack_path,
+    )

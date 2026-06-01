@@ -1,5 +1,5 @@
 """
-SankofahEye — Technology Fingerprinting
+SankofaEye — Technology Fingerprinting
 AfriWealth Cyber Intelligence
 
 Parses URLScan.io scan data to detect:
@@ -18,9 +18,9 @@ as a new "Technology Fingerprint" section in both PDFs.
 """
 
 import re
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("tech_fingerprint")
+log = SankofaLogger("tech_fingerprint")
 
 
 # ─── Technology detection rules ───────────────────────────────────────────────

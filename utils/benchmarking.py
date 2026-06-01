@@ -1,5 +1,5 @@
 """
-SankofahEye — Peer Benchmarking Database
+SankofaEye — Peer Benchmarking Database
 AfriWealth Cyber Intelligence
 
 Maintains an anonymised benchmark database of risk scores
@@ -30,9 +30,9 @@ import os
 import json
 import statistics
 from datetime import datetime
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("benchmarking")
+log = SankofaLogger("benchmarking")
 
 BENCHMARK_DB_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

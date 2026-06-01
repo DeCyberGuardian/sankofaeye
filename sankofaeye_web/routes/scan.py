@@ -21,7 +21,7 @@ scan_bp = Blueprint("scan", __name__)
 
 def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: str):
     """
-    Runs in a background thread. Executes full SankofahEye scan pipeline,
+    Runs in a background thread. Executes full SankofaEye scan pipeline,
     updates job status, saves results to DB.
     """
     with app.app_context():
@@ -46,7 +46,7 @@ def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: st
                 # Fallback minimal config
                 config = {
                     "brand": {
-                        "tool": "SankofahEye", "version": "1.0.0",
+                        "tool": "SankofaEye", "version": "1.0.0",
                         "name": "AfriWealth Cyber Intelligence",
                         "analyst": "DeCyberGuardian",
                         "website": "https://afriwealthci.com",
@@ -95,9 +95,9 @@ def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: st
             if os.path.exists(output_dir):
                 for fname in sorted(os.listdir(output_dir), reverse=True):
                     fpath = os.path.join(output_dir, fname)
-                    if fname.startswith(f"SankofahEye_{domain}_") and fname.endswith(".json") and json_path is None:
+                    if fname.startswith(f"SankofaEye_{domain}_") and fname.endswith(".json") and json_path is None:
                         json_path = fpath
-                    if fname.startswith(f"SankofahEye_{domain}_executive_") and fname.endswith(".pdf") and exec_path is None:
+                    if fname.startswith(f"SankofaEye_{domain}_executive_") and fname.endswith(".pdf") and exec_path is None:
                         exec_path = fpath
 
             # Read score from JSON
@@ -160,6 +160,8 @@ def dashboard():
     compliance = {}
     wa_intel   = {}
     momo       = {}
+    persona    = {}
+    supplier   = {}
     last_scan  = (ScanJob.query
                   .filter_by(user_id=current_user.id, status="complete")
                   .order_by(ScanJob.created_at.desc())
@@ -174,6 +176,8 @@ def dashboard():
                 compliance = findings.get("compliance", {})
                 wa_intel   = findings.get("wa_intel", {})
                 momo       = findings.get("momo_exposure", {})
+                persona    = findings.get("persona_monitoring", {})
+                supplier   = findings.get("supplier_risk", {})
         except Exception:
             pass
 
@@ -183,7 +187,9 @@ def dashboard():
                            scans_limit=scans_limit,
                            compliance=compliance,
                            wa_intel=wa_intel,
-                           momo=momo)
+                           momo=momo,
+                           persona=persona,
+                           supplier=supplier)
 
 
 @scan_bp.route("/scan", methods=["POST"])

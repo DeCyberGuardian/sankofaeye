@@ -1,5 +1,5 @@
 """
-SankofahEye — theHarvester Module
+SankofaEye — theHarvester Module
 AfriWealth Cyber Intelligence
 
 Wraps theHarvester to collect emails, hostnames, and DNS records.
@@ -10,9 +10,9 @@ import subprocess
 import shutil
 import json
 import re
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("harvester")
+log = SankofaLogger("harvester")
 
 
 def run(domain: str, timeout: int = 60) -> dict:

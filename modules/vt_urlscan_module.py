@@ -1,5 +1,5 @@
 """
-SankofahEye — VirusTotal + URLScan.io Module
+SankofaEye — VirusTotal + URLScan.io Module
 AfriWealth Cyber Intelligence
 
 VirusTotal: domain reputation, malware/phishing flags from 70+ vendors
@@ -9,9 +9,9 @@ URLScan.io: passive web scan — technologies, links, screenshots
 import os
 import time
 import requests
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("vt_urlscan")
+log = SankofaLogger("vt_urlscan")
 
 VT_BASE     = "https://www.virustotal.com/api/v3"
 URLSCAN_BASE = "https://urlscan.io/api/v1"

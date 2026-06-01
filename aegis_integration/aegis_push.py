@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-aegis_push.py — Auto-push SankofahEye findings to Aegis-INT
+aegis_push.py — Auto-push SankofaEye findings to Aegis-INT
 =============================================================
 Usage (auto — set env vars, runs after scan):
     AEGIS_INT_URL=http://172.20.10.10 \
@@ -9,7 +9,7 @@ Usage (auto — set env vars, runs after scan):
 
 Usage (manual CLI):
     python aegis_integration/aegis_push.py \
-        --json reports/SankofahEye_gcb.com.gh_20260529.json
+        --json reports/SankofaEye_gcb.com.gh_20260529.json
 
 Author: DeCyberGuardian | AfriWealth Cyber Intelligence
 """
@@ -68,7 +68,7 @@ def _findings_to_events(data: dict) -> list[dict]:
             "severity":        sev,
             "mitre_technique": TECHNIQUE_MAP.get(ftype, "T1595"),
             "timestamp":       ts,
-            "source_tool":     "SankofahEye",
+            "source_tool":     "SankofaEye",
             "agent_name":      f"sankofah-{target}",
             "rule_desc":       desc,
             "risk_score":      scoring.get("score", 0),
@@ -261,7 +261,7 @@ def push_to_aegis(
     silent: bool = False,
 ) -> "dict | None":
     """
-    Push SankofahEye JSON findings to Aegis-INT pipeline.
+    Push SankofaEye JSON findings to Aegis-INT pipeline.
     Returns pipeline response dict, or None if disabled/failed.
     """
     if cfg is None:
@@ -285,7 +285,7 @@ def push_to_aegis(
             data = json.load(f)
 
         if "findings" not in data:
-            log("❌ Invalid SankofahEye JSON")
+            log("❌ Invalid SankofaEye JSON")
             return None
 
         target  = data["findings"].get("target", "unknown")
@@ -310,7 +310,7 @@ def push_to_aegis(
 
 def _cli():
     parser = argparse.ArgumentParser(
-        description="SankofahEye → Aegis-INT push"
+        description="SankofaEye → Aegis-INT push"
     )
     parser.add_argument("--json",      required=True)
     parser.add_argument("--aegis-url", default=os.environ.get("AEGIS_INT_URL", "http://172.20.10.10"))
@@ -319,7 +319,7 @@ def _cli():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  SankofahEye → Aegis-INT | AfriWealth Cyber Intelligence")
+    print("  SankofaEye → Aegis-INT | AfriWealth Cyber Intelligence")
     print("=" * 60)
 
     path = Path(args.json)

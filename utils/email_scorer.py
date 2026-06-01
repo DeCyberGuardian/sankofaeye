@@ -1,5 +1,5 @@
 """
-SankofahEye — Email Security Scorecard
+SankofaEye — Email Security Scorecard
 AfriWealth Cyber Intelligence
 
 Produces an A–F letter grade from SPF, DMARC, and DKIM findings

@@ -1,5 +1,5 @@
 """
-SankofahEye Web — Billing Routes
+SankofaEye Web — Billing Routes
 AfriWealth Cyber Intelligence
 
 Dual payment integration:

@@ -1,5 +1,5 @@
 """
-SankofahEye — Logger
+SankofaEye — Logger
 AfriWealth Cyber Intelligence
 """
 
@@ -11,7 +11,7 @@ from colorama import Fore, Style, init
 init(autoreset=True)
 
 
-class SankofahLogger:
+class SankofaLogger:
     LEVEL_COLORS = {
         "DEBUG":    Fore.CYAN,
         "INFO":     Fore.GREEN,
@@ -62,7 +62,7 @@ class SankofahLogger:
 
     def banner(self, target: str, version: str):
         print(f"\n{Fore.CYAN}{'═' * 60}")
-        print(f"  SankofahEye — AfriWealth Cyber Intelligence")
+        print(f"  SankofaEye — AfriWealth Cyber Intelligence")
         print(f"  Version : {version}")
         print(f"  Target  : {target}")
         print(f"  Started : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

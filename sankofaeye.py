@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SankofahEye — Main Orchestrator
+SankofaEye — Main Orchestrator
 AfriWealth Cyber Intelligence
 
 Passive Reconnaissance & Exposure Scanning Platform
@@ -19,10 +19,12 @@ from dotenv import load_dotenv
 # Load .env before anything else
 load_dotenv()
 
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 from utils.validator import validate_domain
 from utils.aggregator import aggregate
 from utils.risk_scorer import score
+from utils.attack_path import build_attack_path
+from utils.supplier_risk import assess_suppliers, apply_bog_supplier_hook
 
 import modules.subfinder_module  as subfinder_mod
 import modules.harvester_module  as harvester_mod
@@ -38,6 +40,7 @@ from utils.compliance_mapper import map_compliance
 from utils.benchmarking import contribute_scan, get_benchmark
 from utils.remediation_tracker import RemediationTracker
 from monitoring.phishing_detector import detect_phishing_infrastructure
+from monitoring.persona_monitor import monitor_personas
 from alerts.alert_engine import dispatch_alert
 from reports.executive_onepager import generate as generate_exec_onepager
 
@@ -53,9 +56,9 @@ def report_only(json_path: str, config: dict, output_dir: str) -> None:
     No rescan is performed — useful for analyst edits and report re-runs.
 
     Usage:
-        python sankofaeye.py --report-only output/SankofahEye_ghipss.com_20260527.json
+        python sankofaeye.py --report-only output/SankofaEye_ghipss.com_20260527.json
     """
-    log = SankofahLogger("sankofaeye")
+    log = SankofaLogger("sankofaeye")
 
     if not os.path.exists(json_path):
         log.error(f"[report-only] JSON file not found: {json_path}")
@@ -95,7 +98,7 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
     """
     Full scan pipeline. Returns path to generated PDF.
     """
-    log = SankofahLogger(
+    log = SankofaLogger(
         "sankofaeye",
         log_dir=config["output"]["log_directory"],
         level=config["output"]["log_level"],
@@ -246,15 +249,6 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
     risk_weights = config.get("risk_weights", {})
     scoring = score(findings, risk_weights)
 
-    # ── Save JSON dump ────────────────────────────────────────
-    if config["output"].get("json_dump", True):
-        os.makedirs(output_dir, exist_ok=True)
-        ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_path = os.path.join(output_dir, f"SankofahEye_{domain}_{ts}.json")
-        with open(json_path, "w") as jf:
-            json.dump({"findings": findings, "scoring": scoring}, jf, indent=2)
-        log.info(f"Raw findings saved → {json_path}")
-
     # ── Compliance mapping (runs after scoring) ───────────────
     findings['compliance'] = map_compliance(findings, scoring)
 
@@ -340,6 +334,79 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
         log.warning(f"[Phase5D] Remediation tracker error: {e}")
         findings["remediation"] = {}
 
+    # ── Phase 5E: Inferred Attack Path ───────────────────────────
+    log.info("[Phase5E] Reconstructing inferred attack path...")
+    try:
+        findings["attack_path"] = build_attack_path(findings, scoring)
+        ap = findings["attack_path"]
+        if ap.get("has_path"):
+            log.info(
+                f"[Phase5E] Attack path: {ap['stage_count']} stage(s) — "
+                f"{ap['entry_point']}"
+            )
+    except Exception as e:
+        log.warning(f"[Phase5E] Attack path error: {e}")
+        findings["attack_path"] = {}
+
+    # ── Phase 5F: Dark Web Persona Monitoring ────────────────────
+    log.info("[Phase5F] Running dark web persona monitoring...")
+    try:
+        persona = monitor_personas(config, target=domain)
+        findings["persona_monitoring"] = persona
+        if persona.get("total", 0) > 0:
+            log.warning(
+                f"[Phase5F] 🎭 {persona['total']} persona/brand hit(s) detected"
+            )
+            alert_email = config.get("alerts", {}).get("email")
+            alert_phone = config.get("alerts", {}).get("phone")
+            if alert_email or alert_phone:
+                ex = ", ".join(persona.get("executives_found", [])) or "—"
+                br = ", ".join(persona.get("brand_hits", [])) or "—"
+                dispatch_alert(
+                    alert_type="PERSONA_ALERT",
+                    domain=domain,
+                    detail=(
+                        f"{persona['total']} dark-web hit(s). "
+                        f"Executives: {ex}. Brand terms: {br}."
+                    ),
+                    score=scoring.get("score"),
+                    email=alert_email,
+                    phone=alert_phone,
+                )
+    except Exception as e:
+        log.warning(f"[Phase5F] Persona monitoring error: {e}")
+        findings["persona_monitoring"] = {}
+
+    # ── Phase 5G: Supplier / Third-Party Risk Scoring ────────────
+    log.info("[Phase5G] Assessing supplier / third-party risk...")
+    try:
+        supplier_risk = assess_suppliers(config)
+        findings["supplier_risk"] = supplier_risk
+        if supplier_risk.get("high_risk_count", 0) > 0:
+            wl = supplier_risk.get("weakest_link", {})
+            log.warning(
+                f"[Phase5G] ⚠️ {supplier_risk['high_risk_count']} high-risk "
+                f"vendor(s). Weakest: {wl.get('name')} ({wl.get('risk_score')}/100)"
+            )
+            # BoG CISD Section 6 compliance hook
+            findings["compliance"] = apply_bog_supplier_hook(
+                findings.get("compliance", {}), supplier_risk
+            )
+    except Exception as e:
+        log.warning(f"[Phase5G] Supplier risk error: {e}")
+        findings["supplier_risk"] = {}
+
+    # ── Save JSON dump (after all enrichment) ─────────────────
+    # Persisted late so compliance, benchmark, remediation, attack_path
+    # and persona_monitoring are all captured for the web dashboard.
+    if config["output"].get("json_dump", True):
+        os.makedirs(output_dir, exist_ok=True)
+        ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
+        json_path = os.path.join(output_dir, f"SankofaEye_{domain}_{ts}.json")
+        with open(json_path, "w") as jf:
+            json.dump({"findings": findings, "scoring": scoring}, jf, indent=2)
+        log.info(f"Raw findings saved → {json_path}")
+
     # ── Generate PDF ──────────────────────────────────────────
     pdf_path = None
     if config["output"].get("pdf_report", True):
@@ -368,7 +435,7 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SankofahEye — AfriWealth Passive Exposure Scanner",
+        description="SankofaEye — AfriWealth Passive Exposure Scanner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

@@ -1,5 +1,5 @@
 """
-SankofahEye — Multi-Channel Alert Engine
+SankofaEye — Multi-Channel Alert Engine
 AfriWealth Cyber Intelligence
 
 Delivers security alerts across four channels:
@@ -18,6 +18,7 @@ Alert types:
   - BREACH_NEW       : New credential breach detected
   - DARK_WEB_NEW     : New dark web mention detected
   - COMPLIANCE_FAIL  : New regulatory compliance gap detected
+  - PERSONA_ALERT    : Executive name or brand term found in dark-web/fraud context
 
 Required .env variables:
   TWILIO_ACCOUNT_SID   = AC...
@@ -40,9 +41,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 import requests
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("alert_engine")
+log = SankofaLogger("alert_engine")
 
 # ── Alert type definitions ─────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ ALERT_TYPES = {
     "BREACH_NEW":      {"emoji": "🔓", "urgency": "CRITICAL"},
     "DARK_WEB_NEW":    {"emoji": "🕵️", "urgency": "HIGH"},
     "COMPLIANCE_FAIL": {"emoji": "⚠️",  "urgency": "HIGH"},
+    "PERSONA_ALERT":   {"emoji": "🎭", "urgency": "CRITICAL"},
 }
 
 
@@ -76,7 +78,7 @@ def _build_message(alert_type: str, domain: str, detail: str,
     if channel in ("sms", "whatsapp"):
         score_str = f" | Score: {score}/100" if score is not None else ""
         msg = (
-            f"{emoji} SankofahEye [{urgency}]\n"
+            f"{emoji} SankofaEye [{urgency}]\n"
             f"Domain: {domain}\n"
             f"{detail}{score_str}\n"
             f"afriwealthci.com\n{now}"
@@ -94,7 +96,7 @@ def _build_message(alert_type: str, domain: str, detail: str,
         return f"""
         <html><body style="font-family:Arial,sans-serif;color:#212121;max-width:600px;margin:0 auto;">
         <div style="background:#005F5F;padding:20px;border-bottom:3px solid #FFD700;">
-          <h2 style="color:white;margin:0;font-size:18px;">{emoji} SankofahEye Alert</h2>
+          <h2 style="color:white;margin:0;font-size:18px;">{emoji} SankofaEye Alert</h2>
           <p style="color:#FFD700;margin:4px 0 0;font-size:12px;">AfriWealth Cyber Intelligence</p>
         </div>
         <div style="padding:24px 20px;">
@@ -128,7 +130,7 @@ def _build_message(alert_type: str, domain: str, detail: str,
             "detail":  detail,
             "score":   score,
             "time":    now,
-            "source":  "SankofahEye — AfriWealth Cyber Intelligence",
+            "source":  "SankofaEye — AfriWealth Cyber Intelligence",
         })
 
     return f"{emoji} [{urgency}] {domain}: {detail}"
@@ -156,7 +158,7 @@ def send_email_alert(
 
     meta    = ALERT_TYPES.get(alert_type, {"emoji": "⚠️", "urgency": "MEDIUM"})
     subject = (
-        f"{meta['emoji']} [{meta['urgency']}] SankofahEye: "
+        f"{meta['emoji']} [{meta['urgency']}] SankofaEye: "
         f"{alert_type.replace('_', ' ')} — {domain}"
     )
 
@@ -319,7 +321,7 @@ def send_webhook_alert(
             payload = {
                 "attachments": [{
                     "color":  urgency_colour,
-                    "title":  f"{emoji} SankofahEye: {alert_type.replace('_', ' ')} — {domain}",
+                    "title":  f"{emoji} SankofaEye: {alert_type.replace('_', ' ')} — {domain}",
                     "text":   f"{detail}{score_str}",
                     "footer": "AfriWealth Cyber Intelligence | afriwealthci.com",
                     "ts":     int(datetime.utcnow().timestamp()),
@@ -336,7 +338,7 @@ def send_webhook_alert(
                 "@type":    "MessageCard",
                 "@context": "http://schema.org/extensions",
                 "themeColor": urgency_colour.replace("#", ""),
-                "summary":  f"SankofahEye Alert: {domain}",
+                "summary":  f"SankofaEye Alert: {domain}",
                 "sections": [{
                     "activityTitle":    f"{emoji} {alert_type.replace('_', ' ')}",
                     "activitySubtitle": domain,

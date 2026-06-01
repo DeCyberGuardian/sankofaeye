@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-sankofaeye_bridge.py — SankofahEye → Aegis-INT Intelligence Bridge
+sankofaeye_bridge.py — SankofaEye → Aegis-INT Intelligence Bridge
 ====================================================================
-Converts SankofahEye passive recon JSON findings into Aegis-INT
+Converts SankofaEye passive recon JSON findings into Aegis-INT
 pipeline events and submits them for DRIB production.
 
 Usage:
     python scripts/sankofaeye_bridge.py \
-        --json reports/SankofahEye_domain_20260529.json \
+        --json reports/SankofaEye_domain_20260529.json \
         --aegis-url http://172.20.10.10 \
         --token aegis-dev-key-001
 
@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-# ── MITRE technique mapping from SankofahEye finding types ────────────────
+# ── MITRE technique mapping from SankofaEye finding types ────────────────
 FINDING_TECHNIQUE_MAP = {
     "exposed_services":     "T1133",   # External Remote Services
     "credential_exposure":  "T1078",   # Valid Accounts
@@ -46,7 +46,7 @@ SEVERITY_MAP = {
 
 
 def load_sankofah_json(path: str) -> dict:
-    """Load and validate SankofahEye JSON findings file."""
+    """Load and validate SankofaEye JSON findings file."""
     p = Path(path)
     if not p.exists():
         # Try glob expansion
@@ -61,14 +61,14 @@ def load_sankofah_json(path: str) -> dict:
         data = json.load(f)
 
     if "findings" not in data:
-        print("❌ Invalid SankofahEye JSON — missing 'findings' key")
+        print("❌ Invalid SankofaEye JSON — missing 'findings' key")
         sys.exit(1)
 
     return data
 
 
 def findings_to_events(data: dict) -> list[dict]:
-    """Convert SankofahEye findings dict into Aegis-INT RawEvent list."""
+    """Convert SankofaEye findings dict into Aegis-INT RawEvent list."""
     findings = data["findings"]
     scoring  = data.get("scoring", {})
     target   = findings.get("target", "unknown")
@@ -92,7 +92,7 @@ def findings_to_events(data: dict) -> list[dict]:
                 "severity":         base_sev + 2,
                 "mitre_technique":  FINDING_TECHNIQUE_MAP["exposed_services"],
                 "timestamp":        ts,
-                "source_tool":      "SankofahEye/Censys",
+                "source_tool":      "SankofaEye/Censys",
                 "agent_name":       f"sankofah-{target}",
                 "rule_desc":        f"Exposed {svc.get('service','service')} on {target}:{svc.get('port','')}",
             }
@@ -112,7 +112,7 @@ def findings_to_events(data: dict) -> list[dict]:
                 "severity":         base_sev + 3,
                 "mitre_technique":  FINDING_TECHNIQUE_MAP["credential_exposure"],
                 "timestamp":        ts,
-                "source_tool":      "SankofahEye/HIBP",
+                "source_tool":      "SankofaEye/HIBP",
                 "agent_name":       f"sankofah-{target}",
                 "rule_desc":        f"{cred.get('breached_accounts',0)} breached accounts found for {target}",
             }
@@ -133,7 +133,7 @@ def findings_to_events(data: dict) -> list[dict]:
                 "severity":         sev,
                 "mitre_technique":  FINDING_TECHNIQUE_MAP["momo_exposure"],
                 "timestamp":        ts,
-                "source_tool":      "SankofahEye/MoMoModule",
+                "source_tool":      "SankofaEye/MoMoModule",
                 "agent_name":       f"sankofah-{target}",
                 "rule_desc":        f"Mobile Money exposure: {mf.get('pattern','')} [{mf.get('severity','')}]",
             }
@@ -153,7 +153,7 @@ def findings_to_events(data: dict) -> list[dict]:
                 "severity":         base_sev + 4,
                 "mitre_technique":  FINDING_TECHNIQUE_MAP["wa_intel"],
                 "timestamp":        ts,
-                "source_tool":      "SankofahEye/WAThreatDB",
+                "source_tool":      "SankofaEye/WAThreatDB",
                 "agent_name":       f"sankofah-{target}",
                 "rule_desc":        f"Threat actor {actor} — sector relevance match for {target}",
             }
@@ -183,7 +183,7 @@ def findings_to_events(data: dict) -> list[dict]:
                 "severity":         base_sev,
                 "mitre_technique":  FINDING_TECHNIQUE_MAP["dns_security"],
                 "timestamp":        ts,
-                "source_tool":      "SankofahEye/DNSModule",
+                "source_tool":      "SankofaEye/DNSModule",
                 "agent_name":       f"sankofah-{target}",
                 "rule_desc":        f"Email security gaps on {target}: {', '.join(dns_issues)}",
             }
@@ -202,7 +202,7 @@ def findings_to_events(data: dict) -> list[dict]:
                 "severity":         base_sev + 3,
                 "mitre_technique":  FINDING_TECHNIQUE_MAP["infostealer_exposure"],
                 "timestamp":        ts,
-                "source_tool":      "SankofahEye/HudsonRock",
+                "source_tool":      "SankofaEye/HudsonRock",
                 "agent_name":       f"sankofah-{target}",
                 "rule_desc":        f"Infostealer credential exposure detected for {target}",
             }
@@ -241,21 +241,21 @@ def submit_to_aegis(events: list[dict], aegis_url: str, token: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SankofahEye → Aegis-INT Intelligence Bridge"
+        description="SankofaEye → Aegis-INT Intelligence Bridge"
     )
-    parser.add_argument("--json",      required=True, help="Path to SankofahEye JSON findings file")
+    parser.add_argument("--json",      required=True, help="Path to SankofaEye JSON findings file")
     parser.add_argument("--aegis-url", default="http://172.20.10.10", help="Aegis-INT base URL")
     parser.add_argument("--token",     default="aegis-dev-key-001",   help="Aegis-INT API token")
     parser.add_argument("--dry-run",   action="store_true", help="Print events without submitting")
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  SankofahEye → Aegis-INT Bridge")
+    print("  SankofaEye → Aegis-INT Bridge")
     print("  AfriWealth Cyber Intelligence")
     print("=" * 60)
 
     # Load findings
-    print(f"\n[1/3] Loading SankofahEye findings: {args.json}")
+    print(f"\n[1/3] Loading SankofaEye findings: {args.json}")
     data   = load_sankofah_json(args.json)
     target = data["findings"].get("target", "unknown")
     score  = data.get("scoring", {})

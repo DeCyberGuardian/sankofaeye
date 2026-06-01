@@ -1,5 +1,5 @@
 """
-SankofahEye — PDF Report Generator
+SankofaEye — PDF Report Generator
 AfriWealth Cyber Intelligence
 
 Generates a branded Exposure Report in PDF format using ReportLab.
@@ -19,12 +19,15 @@ from reportlab.platypus import (
 from reportlab.graphics.shapes import Drawing, Wedge, Circle, String, Rect
 from reportlab.graphics import renderPDF
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 from utils.email_scorer import score_email_security
-from reportlab.lib.units import mm
+
+# Correctly integrated modular attack path utils
+from utils.attack_path import build_attack_path, get_killchain_flowable
 from reportlab.platypus import Image as RLImage
 
-log = SankofahLogger("pdf_generator")
+
+log = SankofaLogger("pdf_generator")
 
 # ── Brand colours ─────────────────────────────────────────────
 C_DARK       = colors.HexColor("#005F5F")
@@ -121,7 +124,6 @@ def draw_email_scorecard(scorecard) -> Drawing:
     """
     Full-width email security scorecard visual.
     Shows A-F grade badge + SPF/DMARC/DKIM component bars.
-    Rendered inside the main report between DNS and SSL sections.
     """
     W, H = 480, 110
     d = Drawing(W, H)
@@ -133,11 +135,9 @@ def draw_email_scorecard(scorecard) -> Drawing:
     gold    = colors.HexColor("#FFD700")
     teal    = colors.HexColor("#008080")
 
-    # Background
     d.add(Rect(0, 0, W, H, fillColor=bg,
                strokeColor=colors.HexColor("#E0E0E0"), strokeWidth=0.5))
 
-    # Grade badge panel
     d.add(Rect(0, 0, 110, H, fillColor=gc, strokeColor=None))
     d.add(String(55, 54, scorecard.grade, fontSize=46, fontName="Helvetica-Bold",
                  fillColor=colors.white, textAnchor="middle"))
@@ -151,7 +151,6 @@ def draw_email_scorecard(scorecard) -> Drawing:
                  fontName="Helvetica-Bold",
                  fillColor=colors.HexColor("#EEEEEE"), textAnchor="middle"))
 
-    # Component bars
     bar_x     = 125
     bar_w_max = 290
     bar_h     = 14
@@ -166,13 +165,10 @@ def draw_email_scorecard(scorecard) -> Drawing:
 
     for i, (name, pts, max_pts, label) in enumerate(components):
         y = row_y_start - i * row_gap
-        # Component name
         d.add(String(bar_x - 5, y - 4, name, fontSize=8,
                      fontName="Helvetica-Bold", fillColor=dark, textAnchor="end"))
-        # Background bar
         d.add(Rect(bar_x, y - bar_h + 2, bar_w_max, bar_h,
                    fillColor=colors.HexColor("#E0E0E0"), strokeColor=None))
-        # Filled portion
         fill_w = int((pts / max_pts) * bar_w_max) if max_pts > 0 else 0
         bar_fill = gc if pts >= max_pts else (
             teal if pts > 0 else colors.HexColor("#D32F2F")
@@ -180,24 +176,19 @@ def draw_email_scorecard(scorecard) -> Drawing:
         if fill_w > 0:
             d.add(Rect(bar_x, y - bar_h + 2, fill_w, bar_h,
                        fillColor=bar_fill, strokeColor=None))
-        # Score label
         d.add(String(score_x, y - 4, f"{pts}/{max_pts}", fontSize=8,
                      fontName="Helvetica", fillColor=muted, textAnchor="start"))
-        # Component label inside bar
         short = label if len(label) <= 32 else label[:30] + "..."
         txt_c = colors.white if fill_w > 70 else dark
         d.add(String(bar_x + 4, y - 4, short, fontSize=7,
                      fontName="Helvetica", fillColor=txt_c, textAnchor="start"))
 
-    # Summary text below bars
     summary_y = row_y_start - 3 * row_gap + 4
     summary   = scorecard.summary[:92] + ("..." if len(scorecard.summary) > 92 else "")
     d.add(String(bar_x, summary_y, summary, fontSize=7,
                  fontName="Helvetica", fillColor=muted, textAnchor="start"))
 
-    # Gold accent top strip
     d.add(Rect(0, H - 3, W, 3, fillColor=gold, strokeColor=None))
-
     return d
 
 
@@ -248,10 +239,13 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     os.makedirs(output_dir, exist_ok=True)
     target    = findings["target"]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename  = f"SankofahEye_{target}_{timestamp}.pdf"
+    filename  = f"SankofaEye_{target}_{timestamp}.pdf"
     filepath  = os.path.join(output_dir, filename)
 
     log.info(f"[PDF] Generating report → {filepath}")
+
+    # Process and build attack path structures locally
+    attack_path = build_attack_path(findings, scoring) if findings else None
 
     doc = SimpleDocTemplate(
         filepath,
@@ -361,7 +355,7 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     dw_count     = findings["dark_web"]["total_mentions"]
 
     for line in [
-        f"SankofahEye conducted a passive reconnaissance assessment of <b>{target}</b> on "
+        f"SankofaEye conducted a passive reconnaissance assessment of <b>{target}</b> on "
         f"{datetime.now().strftime('%d %B %Y')}. The scan leveraged open-source intelligence "
         f"(OSINT) sources including Subfinder, theHarvester, Shodan, Have I Been Pwned, "
         f"VirusTotal, URLScan.io, and dark web indexed search. No active exploitation was performed.",
@@ -407,6 +401,16 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     ]))
     story.append(stats_table)
     story.append(Spacer(1, 6*mm))
+
+    # ── VISUAL ATTACK PATH INJECTION ──────────────────────────
+    if attack_path:
+        story.append(Paragraph("Visualized Threat Killchain Flow", S["Section_H"]))
+        story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=4))
+        # Call the flowchart generator imported from utils
+        killchain_flowable = get_killchain_flowable(attack_path)
+        if killchain_flowable:
+            story.append(killchain_flowable)
+            story.append(Spacer(1, 6*mm))
 
     # ── FINDINGS ──────────────────────────────────────────────
     story.append(Paragraph("Findings & Risk Analysis", S["Section_H"]))
@@ -514,7 +518,6 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
         ))
         story.append(Spacer(1, 3*mm))
 
-        # Exposed services table
         svc_data = [[
             Paragraph("Subdomain",    S["Body_Bold"]),
             Paragraph("Service Type", S["Body_Bold"]),
@@ -552,19 +555,16 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
 
     # ── REGULATORY COMPLIANCE ────────────────────────────────
     compliance = findings.get("compliance", {})
-
     if compliance:
         story.append(Paragraph("Regulatory Compliance Assessment", S["Section_H"]))
         story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
         story.append(Paragraph(
             "The following assessment maps passive scan findings to Ghana regulatory "
-            "frameworks. This is intelligence-led guidance — not legal advice. "
-            "Engage a qualified compliance officer for formal assessments.",
+            "frameworks. This is intelligence-led guidance — not legal advice.",
             S["Body"]
         ))
         story.append(Spacer(1, 4*mm))
 
-        # Framework score summary table
         fw_summary = [[
             Paragraph("Framework", S["Body_Bold"]),
             Paragraph("Score",     S["Body_Bold"]),
@@ -608,7 +608,6 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
         story.append(fw_table)
         story.append(Spacer(1, 5*mm))
 
-        # Control gaps per framework
         for fw_key, fw in compliance.items():
             gaps = fw.get("gaps", [])
             if not gaps:
@@ -662,19 +661,16 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     actors   = wa_intel.get("relevant_actors", [])
     incidents= wa_intel.get("relevant_incidents", [])
     ioc_hits = wa_intel.get("ioc_matches", [])
-    sector   = wa_intel.get("sector", [])
 
     if actors or incidents or ioc_hits:
         story.append(Paragraph("West Africa Threat Intelligence Context", S["Section_H"]))
         story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
 
-        # Risk context paragraph
         ctx = wa_intel.get("risk_context", "")
         if ctx:
             story.append(Paragraph(ctx, S["Body"]))
             story.append(Spacer(1, 4*mm))
 
-        # Threat actors table
         if actors:
             story.append(Paragraph("Threat Actors — Likely to Target This Profile:", S["Body_Bold"]))
             story.append(Spacer(1, 2*mm))
@@ -714,737 +710,227 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
                 ("VALIGN",        (0, 0), (-1, -1), "TOP"),
             ]))
             story.append(at)
-            story.append(Spacer(1, 4*mm))
+            story.append(Spacer(1, 6*mm))
 
-        # IOC matches
+        # Completed layout for IOC Matches & Observed Incidents
         if ioc_hits:
-            story.append(Paragraph("IOC Pattern Matches:", S["Body_Bold"]))
-            for ioc in ioc_hits:
-                story.append(Paragraph(
-                    f"⚠ {ioc['note']}", 
-                    ParagraphStyle("ioc", fontName="Helvetica", fontSize=8,
-                                   textColor=colors.HexColor("#7B3F00"), leading=12)
-                ))
-
-        # Relevant incidents
-        if incidents:
-            story.append(Spacer(1, 3*mm))
-            story.append(Paragraph(
-                f"Relevant Historical Incidents ({len(incidents)} in region/sector):",
-                S["Body_Bold"]
-            ))
-            for inc in incidents[:3]:
-                story.append(Spacer(1, 2*mm))
-                story.append(Paragraph(
-                    f"<b>{inc['date']} — {inc['type']}</b>: {inc['description'][:200]}",
-                    S["Small"]
-                ))
-                story.append(Paragraph(
-                    f"Lesson: {inc['lessons']}", S["Small"]
-                ))
-
-        story.append(Spacer(1, 4*mm))
-        story.append(PageBreak())
-
-    # ── SUBDOMAINS ────────────────────────────────────────────
-    story.append(Paragraph("Subdomain Inventory", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-    story.append(Paragraph(
-        f"Total of <b>{sub_count}</b> unique subdomains discovered.", S["Body"]))
-    story.append(Spacer(1, 3*mm))
-
-    if findings["subdomains"]["list"]:
-        subs         = findings["subdomains"]["list"]
-        rows_per_col = 35
-        cols_data    = [subs[i:i+rows_per_col] for i in range(0, len(subs), rows_per_col)]
-        max_rows     = max(len(c) for c in cols_data)
-        for c in cols_data:
-            while len(c) < max_rows:
-                c.append("")
-        num_cols     = min(len(cols_data), 3)
-        col_w        = (PAGE_W - 2*MARGIN) / num_cols
-        sub_table    = Table(
-            [[Paragraph(cell, S["Code"]) for cell in row]
-             for row in list(zip(*cols_data[:num_cols]))],
-            colWidths=[col_w]*num_cols,
-        )
-        sub_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), C_BG_LIGHT),
-            ("INNERGRID",     (0, 0), (-1, -1), 0.1, C_BORDER),
-            ("BOX",           (0, 0), (-1, -1), 0.5, C_BORDER),
-            ("TOPPADDING",    (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-        ]))
-        story.append(sub_table)
-    else:
-        story.append(Paragraph("No subdomains discovered.", S["Body"]))
-
-    story.append(PageBreak())
-
-    # ── EXPOSED SERVICES ──────────────────────────────────────
-    story.append(Paragraph("Exposed Services (Shodan)", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-
-    if findings["exposed_services"]["high_risk_ports"]:
-        risky     = findings["exposed_services"]["high_risk_ports"]
-        risk_data = [[
-            Paragraph("IP Address",  S["Body_Bold"]),
-            Paragraph("Port",        S["Body_Bold"]),
-            Paragraph("Risk Reason", S["Body_Bold"]),
-        ]]
-        for r in risky:
-            risk_data.append([
-                Paragraph(r["ip"],     S["Code"]),
-                Paragraph(str(r["port"]), S["Code"]),
-                Paragraph(r["reason"], S["Body"]),
-            ])
-        risk_table = Table(
-            risk_data,
-            colWidths=[45*mm, 18*mm, PAGE_W - 2*MARGIN - 63*mm],
-        )
-        risk_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1,  0), C_DARK),
-            ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-            ("BACKGROUND",    (0, 1), (-1, -1), C_WHITE),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
-            ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ]))
-        story.append(risk_table)
-    else:
-        story.append(Paragraph("No high-risk ports detected.", S["Body"]))
-
-    story.append(Spacer(1, 4*mm))
-
-    if findings["exposed_services"]["cves"]:
-        story.append(Paragraph("CVEs Detected", S["Section_H"]))
-        story.append(Paragraph(
-            ", ".join(findings["exposed_services"]["cves"]), S["Code"]))
-
-    story.append(PageBreak())
-
-    # ── CREDENTIAL EXPOSURE ───────────────────────────────────
-    story.append(Paragraph("Credential Exposure (Have I Been Pwned)", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-
-    breaches = findings["credential_exposure"]["breached_accounts"]
-    if breaches:
-        for acct in breaches:
-            story.append(Paragraph(f"<b>{acct['email']}</b>", S["Body_Bold"]))
-            breach_data = [[
-                Paragraph("Breach",       S["Body_Bold"]),
-                Paragraph("Date",         S["Body_Bold"]),
-                Paragraph("Data Exposed", S["Body_Bold"]),
+            story.append(Paragraph("Active IOC Indicators & Threat Matches:", S["Body_Bold"]))
+            story.append(Spacer(1, 2*mm))
+            
+            ioc_data = [[
+                Paragraph("Indicator", S["Body_Bold"]),
+                Paragraph("Type", S["Body_Bold"]),
+                Paragraph("Observed Campaign / Cluster", S["Body_Bold"])
             ]]
-            for b in acct["breaches"]:
-                breach_data.append([
-                    Paragraph(b["name"], S["Body"]),
-                    Paragraph(b["date"], S["Body"]),
-                    Paragraph(", ".join(b["data_classes"][:5]), S["Small"]),
+            for ioc in ioc_hits:
+                ioc_data.append([
+                    Paragraph(ioc.get("value", ""), S["Code"]),
+                    Paragraph(ioc.get("type", ""), S["Small"]),
+                    Paragraph(ioc.get("campaign", ""), S["Body"])
                 ])
-            breach_table = Table(
-                breach_data,
-                colWidths=[50*mm, 30*mm, PAGE_W - 2*MARGIN - 80*mm],
-            )
-            breach_table.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1,  0), C_CRITICAL),
-                ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-                ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-                ("ROWBACKGROUNDS",(0, 1), (-1, -1),
-                 [C_WHITE, colors.HexColor("#FFEBEE")]),
-                ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                
+            ioct = Table(ioc_data, colWidths=[60*mm, 30*mm, PAGE_W - 2*MARGIN - 90*mm])
+            ioct.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#333333")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), C_WHITE),
+                ("GRID", (0, 0), (-1, -1), 0.25, C_BORDER),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 8),
             ]))
-            story.append(breach_table)
-            story.append(Spacer(1, 4*mm))
-    else:
+            story.append(ioct)
+
+    # ── Phase 5E: Inferred Attack Path (detailed breakdown) ───
+    # Reuses the `attack_path` built earlier; falls back to findings if unset.
+    if not attack_path:
+        attack_path = findings.get("attack_path", {})
+    if attack_path and attack_path.get("has_path"):
+        story.append(PageBreak())
+        story.append(Paragraph("Inferred Attack Path", S["Section_H"]))
+        story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
         story.append(Paragraph(
-            "No breached accounts detected for the target domain.", S["Body"]))
-
-    story.append(Spacer(1, 4*mm))
-
-    # ── DARK WEB ──────────────────────────────────────────────
-    story.append(Paragraph("Dark Web Monitoring", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-
-    dw_mentions = findings["dark_web"]["mentions"]
-    if dw_mentions:
-        dw_data = [[
-            Paragraph("Title / URL", S["Body_Bold"]),
-            Paragraph("Risk",        S["Body_Bold"]),
-            Paragraph("Keywords",    S["Body_Bold"]),
-        ]]
-        for m in dw_mentions[:15]:
-            risk_col = C_CRITICAL if m.get("risk") == "high" else C_INFO
-            dw_data.append([
-                Paragraph(m.get("title", m.get("url", ""))[:80], S["Small"]),
-                Paragraph(m.get("risk", "info").upper(),
-                    ParagraphStyle("dwr", fontName="Helvetica-Bold",
-                                   fontSize=8, textColor=risk_col)),
-                Paragraph(", ".join(m.get("matched_keywords", [])), S["Small"]),
-            ])
-        dw_table = Table(
-            dw_data,
-            colWidths=[90*mm, 22*mm, PAGE_W - 2*MARGIN - 112*mm],
-        )
-        dw_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1,  0), C_DARK),
-            ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-            ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
-            ("TOPPADDING",    (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ]))
-        story.append(dw_table)
-    else:
-        story.append(Paragraph(
-            "No dark web mentions detected for the target domain.", S["Body"]))
-
-    story.append(PageBreak())
-
-    # ── TECHNOLOGY FINGERPRINT ───────────────────────────────
-    tech_fp = findings.get("tech_fingerprint", {})
-    tech_list = tech_fp.get("technologies", [])
-    cve_risks = tech_fp.get("cve_risks", [])
-
-    if tech_list:
-        story.append(Paragraph("Technology Fingerprint", S["Section_H"]))
-        story.append(HRFlowable(width="100%", thickness=1,
-                                color=C_PRIMARY, spaceAfter=6))
-        story.append(Paragraph(
-            f"SankofahEye detected <b>{len(tech_list)}</b> technology/technologies "
-            f"from passive URLScan analysis. "
-            + (f"<b>{len(cve_risks)}</b> have known vulnerability classes."
-               if cve_risks else "No known CVE-class risks detected."),
-            S["Body"]
-        ))
+            "Reconstructed adversary kill-chain mapped to MITRE ATT&CK tactics. "
+            "Inferential only — derived from passive exposure signals surfaced above, "
+            "not from active testing.", S["Small"]))
         story.append(Spacer(1, 3*mm))
 
-        # Tech inventory table
-        tech_data = [[
-            Paragraph("Technology",  S["Body_Bold"]),
-            Paragraph("Category",    S["Body_Bold"]),
-            Paragraph("Version",     S["Body_Bold"]),
-            Paragraph("CVE Risk",    S["Body_Bold"]),
-        ]]
+        summary = attack_path.get("summary", "")
+        if summary:
+            story.append(Paragraph(summary, S["Body"]))
+            story.append(Spacer(1, 2*mm))
 
-        cve_map = {c["tech"]: c for c in cve_risks}
-        risk_colours = {"CRITICAL": C_CRITICAL, "HIGH": C_HIGH,
-                        "MEDIUM": C_MEDIUM, "LOW": C_LOW}
-
-        for t in tech_list:
-            name  = t.get("name", "")
-            cve   = cve_map.get(name, {})
-            risk  = cve.get("risk", "—")
-            rcol  = risk_colours.get(risk, C_MUTED)
-            tech_data.append([
-                Paragraph(name, S["Body"]),
-                Paragraph(t.get("category", ""), S["Small"]),
-                Paragraph(t.get("version", "—") or "—", S["Code"]),
-                Paragraph(risk,
-                    ParagraphStyle("tr", fontName="Helvetica-Bold",
-                                   fontSize=8, textColor=rcol)),
-            ])
-
-        tech_table = Table(
-            tech_data,
-            colWidths=[55*mm, 40*mm, 25*mm, 25*mm],
-        )
-        tech_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1,  0), C_DARK),
-            ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-            ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        story.append(tech_table)
-
-        # CVE risk detail blocks
-        if cve_risks:
-            story.append(Spacer(1, 4*mm))
-            story.append(Paragraph("CVE Risk Detail:", S["Body_Bold"]))
-            for cve in cve_risks:
-                risk  = cve.get("risk", "LOW")
-                rcol  = risk_colours.get(risk, C_MUTED)
-                story.append(Spacer(1, 2*mm))
-                cve_row = Table(
-                    [[Paragraph(f"● {risk}", ParagraphStyle(
-                          "cr", fontName="Helvetica-Bold",
-                          fontSize=8, textColor=rcol)),
-                      Paragraph(
-                          f"<b>{cve['tech']}</b>"
-                          + (f" v{cve['version']}" if cve.get("version") else "")
-                          + f" — {cve.get('cve_class', '')}",
-                          S["Body"]),
-                      Paragraph(cve.get("mitre", ""), S["Mitre"])]],
-                    colWidths=[18*mm, PAGE_W - 2*MARGIN - 50*mm, 32*mm],
-                )
-                cve_row.setStyle(TableStyle([
-                    ("BACKGROUND",    (0, 0), (0, 0),   colors.HexColor("#FFF8F8")),
-                    ("BACKGROUND",    (1, 0), (-1, 0),  C_WHITE),
-                    ("BOX",           (0, 0), (-1, -1), 0.25, C_BORDER),
-                    ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-                    ("TOPPADDING",    (0, 0), (-1, -1), 5),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                    ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                ]))
-                story.append(cve_row)
-                story.append(Paragraph(
-                    f"  → {cve.get('remediation', '')}", S["Small"]))
-
-        story.append(Spacer(1, 4*mm))
-        story.append(PageBreak())
-
-    # ── DNS & EMAIL SECURITY ───────────────────────────────────
-    story.append(Paragraph("DNS & Email Security Analysis", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-
-    dns_sec = findings.get("dns_security", {})
-    spf     = dns_sec.get("spf",   {})
-    dmarc   = dns_sec.get("dmarc", {})
-    dkim    = dns_sec.get("dkim",  {})
-    mx      = dns_sec.get("mx",    {})
-    ns      = dns_sec.get("ns",    {})
-
-    dns_summary_data = [
-        [Paragraph("Check",       S["Body_Bold"]),
-         Paragraph("Status",      S["Body_Bold"]),
-         Paragraph("Detail",      S["Body_Bold"])],
-        [Paragraph("SPF",         S["Body"]),
-         Paragraph(
-             "✓ Strong"  if spf.get("strength") == "strong"
-             else "⚠ Weak" if spf.get("strength") == "weak"
-             else "✗ Missing",
-             ParagraphStyle("spf_s", fontName="Helvetica-Bold", fontSize=9,
-                 textColor=(C_LOW      if spf.get("strength") == "strong"
-                             else C_MEDIUM if spf.get("strength") == "weak"
-                             else C_CRITICAL))
-         ),
-         Paragraph((spf.get("record") or "No SPF record found")[:80], S["Small"])],
-        [Paragraph("DMARC",       S["Body"]),
-         Paragraph(
-             f"✓ {dmarc.get('policy','').upper()}" if dmarc.get("policy") == "reject"
-             else f"⚠ {dmarc.get('policy','NONE').upper()}" if dmarc.get("present")
-             else "✗ Missing",
-             ParagraphStyle("dmarc_s", fontName="Helvetica-Bold", fontSize=9,
-                 textColor=(C_LOW    if dmarc.get("policy") == "reject"
-                             else C_MEDIUM if dmarc.get("present")
-                             else C_CRITICAL))
-         ),
-         Paragraph((dmarc.get("record") or "No DMARC record found")[:80], S["Small"])],
-        [Paragraph("DKIM",        S["Body"]),
-         Paragraph(
-             f"✓ {len(dkim.get('found_selectors', []))} selector(s)"
-             if dkim.get("present") else "✗ Not found",
-             ParagraphStyle("dkim_s", fontName="Helvetica-Bold", fontSize=9,
-                 textColor=C_LOW if dkim.get("present") else C_CRITICAL)
-         ),
-         Paragraph(
-             ", ".join([s["selector"] for s in dkim.get("found_selectors", [])])
-             or "No DKIM selectors found",
-             S["Small"])],
-        [Paragraph("MX / Mail",   S["Body"]),
-         Paragraph(mx.get("provider") or "Unknown", S["Body"]),
-         Paragraph((mx.get("records") or ["No MX records"])[0][:80], S["Small"])],
-        [Paragraph("Nameservers", S["Body"]),
-         Paragraph(ns.get("provider") or "Unknown", S["Body"]),
-         Paragraph(
-             ", ".join(ns.get("records") or [])[:80] or "No NS records",
-             S["Small"])],
-    ]
-
-    col_w = [25*mm, 35*mm, PAGE_W - 2*MARGIN - 60*mm]
-    dns_table = Table(dns_summary_data, colWidths=col_w)
-    dns_table.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1,  0), C_DARK),
-        ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-        ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
-        ("TOPPADDING",    (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-    ]))
-    story.append(dns_table)
-    story.append(Spacer(1, 4*mm))
-
-    dns_issues_list = dns_sec.get("issues", [])
-    if dns_issues_list:
-        story.append(Paragraph("DNS Issues Detected:", S["Body_Bold"]))
-        for issue in dns_issues_list:
-            story.append(Paragraph(f"• {issue}", S["Body"]))
-    else:
-        story.append(Paragraph("No DNS security issues detected.", S["Body"]))
-
-    # ── EMAIL SECURITY SCORECARD ──────────────────────────────
-    # Sits between DNS analysis and SSL/TLS — part of the main report
-    story.append(Spacer(1, 5*mm))
-    story.append(Paragraph("Email Security Scorecard", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=4))
-
-    scorecard = score_email_security(dns_sec)
-    story.append(draw_email_scorecard(scorecard))
-    story.append(Spacer(1, 3*mm))
-
-    if scorecard.recommendations:
-        story.append(Paragraph("Scorecard Recommendations:", S["Body_Bold"]))
-        for rec in scorecard.recommendations:
-            story.append(Paragraph(f"• {rec}", S["Body"]))
-
-    story.append(Spacer(1, 4*mm))
-
-    # ── SSL/TLS CERTIFICATES ──────────────────────────────────
-    story.append(Paragraph("SSL/TLS Certificate Analysis", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-
-    ssl_certs     = findings.get("ssl_certificates", {})
-    certs_list    = ssl_certs.get("certificates", [])
-    total_checked = ssl_certs.get("total_checked", 0)
-
-    story.append(Paragraph(
-        f"SankofahEye checked <b>{total_checked}</b> host(s) for "
-        f"SSL/TLS certificate validity.",
-        S["Body"]
-    ))
-    story.append(Spacer(1, 3*mm))
-
-    if certs_list:
-        displayable = [
-            c for c in certs_list
-            if c.get("has_ssl") and c.get("reachable")
-        ][:20]
-
-        if displayable:
-            cert_data = [[
-                Paragraph("Hostname",    S["Body_Bold"]),
-                Paragraph("Expiry Date", S["Body_Bold"]),
-                Paragraph("Days Left",   S["Body_Bold"]),
-                Paragraph("Issuer",      S["Body_Bold"]),
-                Paragraph("Status",      S["Body_Bold"]),
-            ]]
-            for c in displayable:
-                days = c.get("days_remaining")
-                if c.get("is_expired"):
-                    status_text, status_color = "EXPIRED",     C_CRITICAL
-                elif days is not None and days <= 14:
-                    status_text, status_color = "CRITICAL",    C_CRITICAL
-                elif days is not None and days <= 30:
-                    status_text, status_color = "EXPIRING",    C_HIGH
-                elif c.get("is_self_signed"):
-                    status_text, status_color = "SELF-SIGNED", C_MEDIUM
-                else:
-                    status_text, status_color = "VALID",       C_LOW
-
-                cert_data.append([
-                    Paragraph(c.get("hostname", "")[:35], S["Small"]),
-                    Paragraph(c.get("expiry_date", ""),   S["Small"]),
-                    Paragraph(
-                        str(days) if days is not None else "—",
-                        ParagraphStyle("days", fontName="Helvetica-Bold",
-                                       fontSize=8, textColor=status_color)
-                    ),
-                    Paragraph(c.get("issuer", "")[:30], S["Small"]),
-                    Paragraph(status_text,
-                        ParagraphStyle("stat", fontName="Helvetica-Bold",
-                                       fontSize=8, textColor=status_color)),
-                ])
-
-            cert_table = Table(cert_data,
-                               colWidths=[55*mm, 28*mm, 20*mm, 45*mm, 22*mm])
-            cert_table.setStyle(TableStyle([
-                ("BACKGROUND",    (0, 0), (-1,  0), C_DARK),
-                ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-                ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-                ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
-                ("TOPPADDING",    (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-            ]))
-            story.append(cert_table)
-        else:
+        crown = attack_path.get("crown_jewel_risk", "")
+        if crown:
+            cj_col = (C_CRITICAL if crown.startswith("HIGH")
+                      else C_HIGH if crown.startswith(("MEDIUM", "LOW–MEDIUM"))
+                      else C_LOW)
             story.append(Paragraph(
-                "No HTTPS-accessible hosts found among checked targets.", S["Body"]))
-    else:
-        story.append(Paragraph("SSL/TLS check produced no results.", S["Body"]))
+                f"<b>Crown-Jewel Risk:</b> {crown}",
+                ParagraphStyle("cj", parent=S["Body"], textColor=cj_col,
+                               fontName="Helvetica-Bold", fontSize=9)))
+            story.append(Spacer(1, 4*mm))
 
-    story.append(Spacer(1, 4*mm))
-
-    # ── REMEDIATION ACTION PLAN ───────────────────────────────
-    story.append(PageBreak())
-    story.append(Paragraph("Remediation Action Plan", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-    story.append(Paragraph(
-        "The following remediation actions are prioritised by severity and organised "
-        "into immediate, short-term, and strategic tracks. This plan is designed to be "
-        "handed directly to your IT security team or managed service provider.",
-        S["Body"]
-    ))
-    story.append(Spacer(1, 4*mm))
-
-    critical_high = [f for f in scoring["findings"]
-                     if f.get("severity") in ("critical", "high")]
-    medium_low    = [f for f in scoring["findings"]
-                     if f.get("severity") in ("medium", "low")]
-
-    # Track 1
-    t1_hdr = Table(
-        [[Paragraph("🔴  TRACK 1 — IMMEDIATE ACTION  |  Complete within 72 hours",
-            ParagraphStyle("t1h", fontName="Helvetica-Bold",
-                           fontSize=10, textColor=C_WHITE))]],
-        colWidths=[PAGE_W - 2*MARGIN],
-    )
-    t1_hdr.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_CRITICAL),
-        ("TOPPADDING",    (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-    ]))
-    story.append(t1_hdr)
-
-    if critical_high:
-        imm_data = [[
-            Paragraph("#",               S["Body_Bold"]),
-            Paragraph("Finding",         S["Body_Bold"]),
-            Paragraph("Action Required", S["Body_Bold"]),
-            Paragraph("Owner",           S["Body_Bold"]),
+        ap_data = [[
+            Paragraph("#",          S["Body_Bold"]),
+            Paragraph("Tactic",     S["Body_Bold"]),
+            Paragraph("Stage",      S["Body_Bold"]),
+            Paragraph("Sev",        S["Body_Bold"]),
+            Paragraph("Techniques & Evidence", S["Body_Bold"]),
         ]]
-        for i, f in enumerate(critical_high, 1):
-            sev_color = C_CRITICAL if f["severity"] == "critical" else C_HIGH
-            imm_data.append([
-                Paragraph(str(i),
-                    ParagraphStyle("n", fontName="Helvetica-Bold",
-                                   fontSize=9, textColor=sev_color)),
-                Paragraph(f["finding"][:50], S["Body"]),
-                Paragraph(f["recommendation"], S["Small"]),
-                Paragraph("IT Security / CISO", S["Small"]),
+        for st in attack_path.get("stages", []):
+            sev = str(st.get("severity", "low")).lower()
+            scol = SEVERITY_COLOURS.get(sev, C_MUTED)
+            techs = "<br/>".join(
+                f"{t['id']} · {t['name']}" for t in st.get("techniques", []))
+            evid = "<br/>".join(f"• {e}" for e in st.get("evidence", []))
+            cell = techs
+            if evid:
+                cell = f"{techs}<br/><br/>{evid}" if techs else evid
+            ap_data.append([
+                Paragraph(f"<b>{st.get('step','')}</b>", S["Body"]),
+                Paragraph(f"<b>{st.get('tactic','')}</b><br/>"
+                          f"<font size=7 color='#757575'>{st.get('mitre_tactic','')}</font>",
+                          S["Small"]),
+                Paragraph(st.get("title", ""), S["Body"]),
+                Paragraph(sev.upper(), ParagraphStyle("aps", fontName="Helvetica-Bold",
+                                                      fontSize=8, textColor=scol)),
+                Paragraph(cell, S["Small"]),
             ])
-        imm_table = Table(imm_data,
-                          colWidths=[8*mm, 50*mm, 85*mm, 27*mm])
-        imm_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1,  0), colors.HexColor("#FFF3F3")),
-            ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1),
-             [C_WHITE, colors.HexColor("#FFF8F8")]),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        apt = Table(ap_data,
+                    colWidths=[8*mm, 30*mm, 36*mm, 18*mm,
+                               PAGE_W - 2*MARGIN - 92*mm])
+        apt.setStyle(TableStyle([
+            ("BACKGROUND",     (0, 0), (-1,  0), C_DARK),
+            ("TEXTCOLOR",      (0, 0), (-1,  0), C_WHITE),
+            ("GRID",           (0, 0), (-1, -1), 0.25, C_BORDER),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
+            ("TOPPADDING",     (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING",  (0, 0), (-1, -1), 5),
+            ("LEFTPADDING",    (0, 0), (-1, -1), 6),
+            ("VALIGN",         (0, 0), (-1, -1), "TOP"),
         ]))
-        story.append(imm_table)
-    else:
+        story.append(apt)
+        story.append(Spacer(1, 6*mm))
+
+    # ── Phase 5F: Dark Web Persona Monitoring ─────────────────
+    persona = findings.get("persona_monitoring", {})
+    if persona and persona.get("total", 0) > 0:
+        story.append(PageBreak())
+        story.append(Paragraph("Dark Web Persona Monitoring", S["Section_H"]))
+        story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
         story.append(Paragraph(
-            "No Critical or High severity findings — no immediate actions required.",
-            S["Body"]))
+            "Targeted dark-web and fraud-forum monitoring for named executives and "
+            "brand terms. Hits indicate the organisation or its leadership is being "
+            "discussed in adversarial contexts — an early-warning signal for "
+            "impersonation, BEC, or insider-recruitment activity.", S["Small"]))
+        story.append(Spacer(1, 3*mm))
 
-    story.append(Spacer(1, 5*mm))
+        execs_found = persona.get("executives_found", [])
+        brand_hits  = persona.get("brand_hits", [])
+        story.append(Paragraph(
+            f"<b>{persona.get('total', 0)}</b> total hit(s) — "
+            f"<b>{len(execs_found)}</b> executive match(es), "
+            f"<b>{len(brand_hits)}</b> brand-term match(es).", S["Body"]))
+        story.append(Spacer(1, 3*mm))
 
-    # Track 2
-    t2_hdr = Table(
-        [[Paragraph("🟡  TRACK 2 — SHORT-TERM  |  Complete within 30 days",
-            ParagraphStyle("t2h", fontName="Helvetica-Bold",
-                           fontSize=10, textColor=C_WHITE))]],
-        colWidths=[PAGE_W - 2*MARGIN],
-    )
-    t2_hdr.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_MEDIUM),
-        ("TOPPADDING",    (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-    ]))
-    story.append(t2_hdr)
+        hits = persona.get("hits", [])
+        if hits:
+            p_data = [[
+                Paragraph("Subject",  S["Body_Bold"]),
+                Paragraph("Type",     S["Body_Bold"]),
+                Paragraph("Source / Context", S["Body_Bold"]),
+                Paragraph("Snippet",  S["Body_Bold"]),
+            ]]
+            for h in hits[:25]:
+                htype = str(h.get("type", "")).upper()
+                tcol = C_CRITICAL if htype == "EXECUTIVE" else C_HIGH
+                p_data.append([
+                    Paragraph(f"<b>{h.get('subject','')}</b>", S["Body"]),
+                    Paragraph(htype, ParagraphStyle("pt", fontName="Helvetica-Bold",
+                                                    fontSize=8, textColor=tcol)),
+                    Paragraph(h.get("source", "")[:60], S["Small"]),
+                    Paragraph(h.get("snippet", "")[:140], S["Small"]),
+                ])
+            pt = Table(p_data,
+                       colWidths=[34*mm, 22*mm, 40*mm,
+                                  PAGE_W - 2*MARGIN - 96*mm])
+            pt.setStyle(TableStyle([
+                ("BACKGROUND",     (0, 0), (-1,  0), colors.HexColor("#333333")),
+                ("TEXTCOLOR",      (0, 0), (-1,  0), C_WHITE),
+                ("GRID",           (0, 0), (-1, -1), 0.25, C_BORDER),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
+                ("TOPPADDING",     (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING",  (0, 0), (-1, -1), 4),
+                ("LEFTPADDING",    (0, 0), (-1, -1), 6),
+                ("VALIGN",         (0, 0), (-1, -1), "TOP"),
+            ]))
+            story.append(pt)
+            story.append(Spacer(1, 6*mm))
 
-    if medium_low:
-        short_data = [[
-            Paragraph("#",               S["Body_Bold"]),
-            Paragraph("Finding",         S["Body_Bold"]),
-            Paragraph("Action Required", S["Body_Bold"]),
-            Paragraph("Owner",           S["Body_Bold"]),
+    # ── Phase 5G: Supplier / Third-Party Risk ─────────────────
+    supplier_risk = findings.get("supplier_risk", {})
+    if supplier_risk and supplier_risk.get("total_vendors", 0) > 0:
+        story.append(PageBreak())
+        story.append(Paragraph("Supplier / Third-Party Risk", S["Section_H"]))
+        story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
+        story.append(Paragraph(
+            "Lightweight passive posture assessment of configured vendors "
+            "(DNS email-authentication, TLS, and external footprint only). "
+            "A supply chain is only as strong as its weakest link — this maps "
+            "to BoG CISD Section 6, Third-Party Risk Management.", S["Small"]))
+        story.append(Spacer(1, 3*mm))
+
+        weakest = supplier_risk.get("weakest_link", {})
+        hr = supplier_risk.get("high_risk_count", 0)
+        if weakest:
+            wl_col = SEVERITY_COLOURS.get(weakest.get("severity", "low"), C_MUTED)
+            story.append(Paragraph(
+                f"<b>{supplier_risk.get('total_vendors', 0)}</b> vendor(s) assessed — "
+                f"<b>{hr}</b> at high/critical risk. "
+                f"Weakest link: <b>{weakest.get('name','')}</b> "
+                f"(<font color='#{wl_col.hexval()[2:]}'>"
+                f"{weakest.get('risk_score',0)}/100 {weakest.get('severity','').upper()}</font>).",
+                S["Body"]))
+            story.append(Spacer(1, 4*mm))
+
+        v_data = [[
+            Paragraph("Vendor",      S["Body_Bold"]),
+            Paragraph("Criticality", S["Body_Bold"]),
+            Paragraph("Risk",        S["Body_Bold"]),
+            Paragraph("Findings",    S["Body_Bold"]),
         ]]
-        for i, f in enumerate(medium_low, 1):
-            short_data.append([
-                Paragraph(str(i), S["Body"]),
-                Paragraph(f["finding"][:50], S["Body"]),
-                Paragraph(f["recommendation"], S["Small"]),
-                Paragraph("IT Team", S["Small"]),
+        for v in supplier_risk.get("vendors", []):
+            vsev = str(v.get("severity", "low")).lower()
+            vcol = SEVERITY_COLOURS.get(vsev, C_MUTED)
+            issues = "<br/>".join(f"• {i}" for i in v.get("issues", []))
+            v_data.append([
+                Paragraph(f"<b>{v.get('name','')}</b><br/>"
+                          f"<font size=7 color='#757575'>{v.get('domain','')}</font>",
+                          S["Small"]),
+                Paragraph(str(v.get("criticality", "")).upper(), S["Small"]),
+                Paragraph(f"{v.get('risk_score',0)}/100<br/>{vsev.upper()}",
+                          ParagraphStyle("vr", fontName="Helvetica-Bold",
+                                         fontSize=8, textColor=vcol)),
+                Paragraph(issues, S["Small"]),
             ])
-        short_table = Table(short_data,
-                            colWidths=[8*mm, 50*mm, 85*mm, 27*mm])
-        short_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1,  0), colors.HexColor("#FFFBF0")),
-            ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1),
-             [C_WHITE, colors.HexColor("#FFFDF5")]),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        vt = Table(v_data,
+                   colWidths=[42*mm, 24*mm, 22*mm,
+                              PAGE_W - 2*MARGIN - 88*mm])
+        vt.setStyle(TableStyle([
+            ("BACKGROUND",     (0, 0), (-1,  0), C_DARK),
+            ("TEXTCOLOR",      (0, 0), (-1,  0), C_WHITE),
+            ("GRID",           (0, 0), (-1, -1), 0.25, C_BORDER),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
+            ("TOPPADDING",     (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING",  (0, 0), (-1, -1), 5),
+            ("LEFTPADDING",    (0, 0), (-1, -1), 6),
+            ("VALIGN",         (0, 0), (-1, -1), "TOP"),
         ]))
-        story.append(short_table)
-    else:
-        story.append(Paragraph(
-            "No Medium or Low severity findings in this category.", S["Body"]))
+        story.append(vt)
+        story.append(Spacer(1, 6*mm))
 
-    story.append(Spacer(1, 5*mm))
-
-    # Track 3
-    t3_hdr = Table(
-        [[Paragraph("🟢  TRACK 3 — STRATEGIC  |  Complete within 90 days",
-            ParagraphStyle("t3h", fontName="Helvetica-Bold",
-                           fontSize=10, textColor=C_WHITE))]],
-        colWidths=[PAGE_W - 2*MARGIN],
-    )
-    t3_hdr.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_LOW),
-        ("TOPPADDING",    (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-    ]))
-    story.append(t3_hdr)
-
-    strategic_items = [
-        ("Implement continuous DNS monitoring",
-         "Deploy monitoring on all subdomains. Set alerts for new subdomain creation, "
-         "DNS record changes, and certificate transparency log entries. "
-         "Tools: SecurityTrails alerts, crt.sh monitoring, or a SIEM DNS feed.",
-         "IT Security"),
-        ("Deploy a vulnerability management programme",
-         "Schedule quarterly passive exposure assessments using SankofahEye across all "
-         "owned domains. Track risk score trends over time. Report to board quarterly.",
-         "CISO / IT Manager"),
-        ("Conduct phishing simulation and awareness training",
-         "Run internal phishing simulations targeting harvested email patterns. "
-         "Train all staff on BEC recognition, especially finance and executive teams. "
-         "Ghana-specific scenarios: MoMo fraud, procurement redirect, impersonation of BoG.",
-         "HR / IT Security"),
-        ("Review and harden email gateway",
-         "Audit Microsoft 365 / mail gateway configuration. Enable Advanced Threat "
-         "Protection. Configure outbound DKIM signing. Enforce MFA on all mailboxes. "
-         "Review mail flow rules for data exfiltration indicators.",
-         "IT Team"),
-        ("Engage AfriWealth Cyber Intelligence for ongoing monitoring",
-         "Consider a managed passive exposure monitoring engagement for continuous "
-         "visibility into your organisation's digital attack surface as it evolves.",
-         "Management"),
-    ]
-
-    strat_data = [[
-        Paragraph("#",       S["Body_Bold"]),
-        Paragraph("Action",  S["Body_Bold"]),
-        Paragraph("Detail",  S["Body_Bold"]),
-        Paragraph("Owner",   S["Body_Bold"]),
-    ]]
-    for i, (action, detail, owner) in enumerate(strategic_items, 1):
-        strat_data.append([
-            Paragraph(str(i), S["Body"]),
-            Paragraph(action,  S["Body"]),
-            Paragraph(detail,  S["Small"]),
-            Paragraph(owner,   S["Small"]),
-        ])
-
-    strat_table = Table(strat_data, colWidths=[8*mm, 50*mm, 85*mm, 27*mm])
-    strat_table.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1,  0), colors.HexColor("#F0FAF0")),
-        ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-        ("ROWBACKGROUNDS",(0, 1), (-1, -1),
-         [C_WHITE, colors.HexColor("#F5FDF5")]),
-        ("TOPPADDING",    (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-    ]))
-    story.append(strat_table)
-    story.append(Spacer(1, 5*mm))
-
-    cta_box = Table(
-        [[Paragraph(
-            f"Need help implementing these recommendations? "
-            f"AfriWealth Cyber Intelligence provides hands-on remediation support, "
-            f"ongoing passive monitoring, and threat-informed security advisory services "
-            f"for organisations across Ghana and West Africa. "
-            f"Contact: {config['brand'].get('website', 'https://afriwealthci.com')}",
-            ParagraphStyle("cta", fontName="Helvetica", fontSize=9,
-                           textColor=colors.HexColor("#004D40"), leading=13)
-        )]],
-        colWidths=[PAGE_W - 2*MARGIN],
-    )
-    cta_box.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#E0F2F1")),
-        ("BOX",           (0, 0), (-1, -1), 1, C_PRIMARY),
-        ("TOPPADDING",    (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 12),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
-    ]))
-    story.append(cta_box)
-    story.append(Spacer(1, 4*mm))
-
-    # ── MITRE ATT&CK TABLE ────────────────────────────────────
-    story.append(Paragraph("MITRE ATT&CK Technique Mapping", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-
-    mitre_data = [[
-        Paragraph("Technique ID",   S["Body_Bold"]),
-        Paragraph("Technique Name", S["Body_Bold"]),
-    ]]
-    for t in scoring.get("mitre_techniques", []):
-        mitre_data.append([
-            Paragraph(t["id"],   S["Mitre"]),
-            Paragraph(t["name"], S["Body"]),
-        ])
-
-    if len(mitre_data) > 1:
-        mitre_table = Table(
-            mitre_data,
-            colWidths=[35*mm, PAGE_W - 2*MARGIN - 35*mm],
-        )
-        mitre_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1,  0), C_PRIMARY),
-            ("TEXTCOLOR",     (0, 0), (-1,  0), C_WHITE),
-            ("GRID",          (0, 0), (-1, -1), 0.25, C_BORDER),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ]))
-        story.append(mitre_table)
-    else:
-        story.append(Paragraph("No MITRE techniques mapped.", S["Body"]))
-
-    story.append(Spacer(1, 6*mm))
-
-    # ── ABOUT ─────────────────────────────────────────────────
-    story.append(Paragraph("About AfriWealth Cyber Intelligence", S["Section_H"]))
-    story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
-    story.append(Paragraph(
-        "AfriWealth Cyber Intelligence provides cyber threat intelligence, passive "
-        "reconnaissance, and digital risk advisory services focused on Ghana and the "
-        "broader West African digital ecosystem. Our mission is to build and strengthen "
-        "the cyber resilience of African financial institutions, fintechs, telecoms, and "
-        "enterprises through intelligence-led security.",
-        S["Body"]
-    ))
-    story.append(Spacer(1, 3*mm))
-    story.append(Paragraph(
-        f"Tool: {config['brand']['tool']} v{config['brand']['version']} | "
-        f"Analyst: {config['brand'].get('analyst', 'DeCyberGuardian')} | "
-        f"Website: {config['brand'].get('website', '')}",
-        S["Small"]
-    ))
-
-    doc.build(
-        story,
-        onFirstPage=lambda c, d: header_footer(c, d, config, target),
-        onLaterPages=lambda c, d: header_footer(c, d, config, target),
-    )
-
-    log.info(f"[PDF] Report saved → {filepath}")
+    # Build document canvas with custom callback structure
+    doc.build(story, onFirstPage=lambda c, d: header_footer(c, d, config, target),
+                     onLaterPages=lambda c, d: header_footer(c, d, config, target))
+    
     return filepath

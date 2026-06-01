@@ -1,14 +1,15 @@
 # ============================================================
-# SankofahEye Configuration
+# SankofaEye Configuration
 # AfriWealth Cyber Intelligence
 # ============================================================
 # Do NOT put real API keys here. Use .env file instead.
 # This file controls module toggles, thresholds, and branding.
+# ============================================================
 
 # ── Branding ────────────────────────────────────────────────
 brand:
   name: "AfriWealth Cyber Intelligence"
-  tool: "SankofahEye"
+  tool: "SankofaEye"
   version: "1.0.0"
   tagline: "Passive Exposure Intelligence for the African Digital Ecosystem"
   website: "https://afriwealthci.com"
@@ -23,9 +24,9 @@ modules:
   virustotal: true       # Domain reputation via VirusTotal API
   urlscan: true          # Passive web scan via URLScan.io
   darkweb: true          # Dark web mention search via Ahmia/OnionSearch
-  hudsonrock: true   # Compromised employee search via HudsonRock API (hypothetical)
-  dns: true
-  ssl: true             # SSL certificate checks (new module)
+  hudsonrock: true       # Compromised employee search via HudsonRock API
+  dns: true              # DNS security posture (SPF / DMARC / DKIM)
+  ssl: true              # SSL certificate checks
 
 # ── Timeouts (seconds) ──────────────────────────────────────
 timeouts:
@@ -36,8 +37,8 @@ timeouts:
   virustotal: 30
   urlscan: 30
   darkweb: 45
-  hudsonrock: 30 
-  dns: 30  
+  hudsonrock: 30
+  dns: 30
   ssl: 45
 
 # ── Risk scoring weights ─────────────────────────────────────
@@ -67,3 +68,17 @@ output:
   pdf_report: true
   json_dump: true        # Raw findings saved as JSON alongside PDF
   log_level: "INFO"      # DEBUG | INFO | WARNING | ERROR
+
+# ── Phase 5F — Dark Web Persona Monitoring ──────────────────
+personas:
+  executives:
+    - name: "John Mensah"
+      title: "CEO"
+      email_pattern: "jmensah"
+  brand_terms: ["afriwealth", "sankofaeye"]
+
+# ── Phase 5G — Supplier / Third-Party Risk Scoring ──────────
+suppliers:
+  - domain: "vendor-example.com"
+    name: "Core Banking Provider"
+    criticality: high

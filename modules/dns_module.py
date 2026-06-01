@@ -1,5 +1,5 @@
 """
-SankofahEye — DNS Security Module
+SankofaEye — DNS Security Module
 AfriWealth Cyber Intelligence
 
 Passive DNS analysis — checks SPF, DMARC, DKIM, MX, NS records
@@ -9,9 +9,9 @@ No API keys required — pure DNS lookups only.
 
 import dns.resolver
 import dns.exception
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("dns")
+log = SankofaLogger("dns")
 
 # Common DKIM selectors to probe
 DKIM_SELECTORS = [

@@ -1,5 +1,5 @@
 """
-SankofahEye — Censys Module
+SankofaEye — Censys Module
 AfriWealth Cyber Intelligence
 
 Queries Censys API for exposed services, open ports, and certificates.
@@ -8,9 +8,9 @@ Sign up free at search.censys.io/register
 
 import os
 import requests
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("censys")
+log = SankofaLogger("censys")
 
 CENSYS_BASE = "https://search.censys.io/api/v2"
 
@@ -62,7 +62,7 @@ def run(domain: str, timeout: int = 30) -> dict:
         "Authorization": f"Bearer {api_token}",
         "Censys-Org-Id":  org_id if org_id else "",
         "Content-Type":   "application/json",
-        "User-Agent":     "SankofahEye-AfriWealthCI/1.0",
+        "User-Agent":     "SankofaEye-AfriWealthCI/1.0",
     }
 
     log.info(f"[Censys] Querying exposed services for {domain}...")

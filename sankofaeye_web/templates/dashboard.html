@@ -191,6 +191,48 @@
 </div>
 {% endif %}
 
+<!-- ── 4B. DARK WEB PERSONA MONITORING (Phase 5F) ── -->
+{% if persona and persona.total and persona.total > 0 %}
+<div class="card">
+  <h2>Dark Web Persona Monitoring</h2>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+    {{ persona.total }} hit(s) — executives or brand terms found in dark-web /
+    fraud-forum context.
+    {% if persona.executives_found %}
+    Executives flagged: <strong style="color:var(--red);">{{ persona.executives_found | join(', ') }}</strong>.
+    {% endif %}
+  </p>
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for hit in persona.hits[:6] %}
+    {% set hc = '#D32F2F' if hit.type == 'executive' else '#F57C00' %}
+    <div style="border:1px solid {{ hc }};border-left:4px solid {{ hc }};
+                border-radius:4px;padding:9px 12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text);">{{ hit.subject }}</span>
+        <span style="font-size:9px;font-weight:700;color:white;background:{{ hc }};
+                     padding:2px 7px;border-radius:3px;text-transform:uppercase;">
+          {{ hit.type }}
+        </span>
+      </div>
+      {% if hit.source %}
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">{{ hit.source }}</div>
+      {% endif %}
+      {% if hit.snippet %}
+      <div style="font-size:11px;color:var(--text);margin-top:3px;font-style:italic;">
+        "{{ hit.snippet[:140] }}{% if hit.snippet|length > 140 %}…{% endif %}"
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if persona.hits|length > 6 %}
+    <div style="font-size:11px;color:var(--muted);">
+      +{{ persona.hits|length - 6 }} more in full report
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ── 5. MOBILE MONEY EXPOSURE (from most recent scan) ── -->
 {% if momo and momo.exposed_services %}
 <div class="card">
@@ -245,6 +287,56 @@
     {% endfor %}
   </div>
   {% endif %}
+</div>
+{% endif %}
+
+<!-- ── 5B. SUPPLIER / THIRD-PARTY RISK (Phase 5G) ── -->
+{% if supplier and supplier.total_vendors and supplier.total_vendors > 0 %}
+<div class="card">
+  <h2>Supplier / Third-Party Risk</h2>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+    {{ supplier.total_vendors }} vendor(s) assessed —
+    <strong style="color:{{ '#D32F2F' if supplier.high_risk_count > 0 else 'var(--green)' }};">
+      {{ supplier.high_risk_count }} at high/critical risk
+    </strong>.
+    {% if supplier.weakest_link and supplier.weakest_link.name %}
+    Weakest link: <strong>{{ supplier.weakest_link.name }}</strong>
+    ({{ supplier.weakest_link.risk_score }}/100).
+    {% endif %}
+  </p>
+
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for v in supplier.vendors %}
+    {% set vc = {'critical':'#D32F2F','high':'#F57C00','medium':'#FBC02D','low':'#388E3C'}[v.severity] %}
+    <div style="border:1px solid var(--border);border-left:4px solid {{ vc }};
+                border-radius:4px;padding:10px 13px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;
+                  gap:10px;flex-wrap:wrap;">
+        <div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">{{ v.name }}</span>
+          <span style="font-size:11px;color:var(--muted);font-family:monospace;
+                       margin-left:6px;">{{ v.domain }}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:9px;font-weight:700;color:var(--muted);
+                       text-transform:uppercase;">{{ v.criticality }}</span>
+          <span style="font-size:10px;font-weight:700;color:white;background:{{ vc }};
+                       padding:2px 8px;border-radius:3px;">
+            {{ v.risk_score }}/100 {{ v.severity | upper }}
+          </span>
+        </div>
+      </div>
+      {% if v.issues %}
+      <ul style="font-size:11px;color:var(--muted);padding-left:16px;
+                 margin:6px 0 0;line-height:1.6;">
+        {% for issue in v.issues %}
+        <li>{{ issue }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 

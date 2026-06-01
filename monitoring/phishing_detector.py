@@ -1,5 +1,5 @@
 """
-SankofahEye — Phishing Infrastructure Detection
+SankofaEye — Phishing Infrastructure Detection
 AfriWealth Cyber Intelligence
 
 Monitors three sources for lookalike/impersonation domains targeting
@@ -25,7 +25,7 @@ Detection logic:
   - TLD abuse patterns (-gh.com, .com.gh lookalikes, .net/.org variants)
 
 This is pre-crime intelligence. By the time a phishing email lands
-in a Ghanaian bank employee's inbox, SankofahEye has already flagged
+in a Ghanaian bank employee's inbox, SankofaEye has already flagged
 the infrastructure that sent it.
 
 MITRE ATT&CK: T1583.001 — Acquire Infrastructure: Domains
@@ -38,9 +38,9 @@ import time
 import requests
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
-from utils.logger import SankofahLogger
+from utils.logger import SankofaLogger
 
-log = SankofahLogger("phishing_detector")
+log = SankofaLogger("phishing_detector")
 
 # ── Ghana brand keyword list ───────────────────────────────────────────────────
 # Core keywords to monitor. Any domain containing or closely resembling
@@ -179,7 +179,7 @@ def _query_crtsh(keyword: str, days_back: int = 7) -> list[dict]:
     try:
         url = f"https://crt.sh/?q=%25{keyword}%25&output=json"
         resp = requests.get(url, timeout=20,
-                            headers={"User-Agent": "SankofahEye/1.0"})
+                            headers={"User-Agent": "SankofaEye/1.0"})
         if resp.status_code != 200:
             return []
 
