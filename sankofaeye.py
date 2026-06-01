@@ -37,6 +37,7 @@ import modules.dns_module        as dns_mod
 import modules.ssl_module        as ssl_mod
 from reports.pdf_generator import generate as generate_pdf
 from utils.compliance_mapper import map_compliance
+from utils.sector import detect_sector, get_sector_profile, apply_sector_framing
 from utils.benchmarking import contribute_scan, get_benchmark
 from utils.remediation_tracker import RemediationTracker
 from monitoring.phishing_detector import detect_phishing_infrastructure
@@ -94,9 +95,18 @@ def report_only(json_path: str, config: dict, output_dir: str) -> None:
 
 
 
-def run_scan(domain: str, config: dict, output_dir: str) -> str:
+def run_scan(domain: str, config: dict, output_dir: str, sector: str = None) -> str:
     """
     Full scan pipeline. Returns path to generated PDF.
+
+    Args:
+        domain:     target domain
+        config:     SankofaEye config dict
+        output_dir: where reports + JSON are written
+        sector:     optional sector key (government/financial/telecom/
+                    healthcare/education/commercial). Auto-detected from the
+                    domain when not supplied; controls which compliance
+                    frameworks apply and how findings are framed.
     """
     log = SankofaLogger(
         "sankofaeye",
@@ -249,8 +259,31 @@ def run_scan(domain: str, config: dict, output_dir: str) -> str:
     risk_weights = config.get("risk_weights", {})
     scoring = score(findings, risk_weights)
 
-    # ── Compliance mapping (runs after scoring) ───────────────
-    findings['compliance'] = map_compliance(findings, scoring)
+    # ── Sector resolution + framing ───────────────────────────
+    # Use the supplied sector, else auto-detect from the domain.
+    sector = sector or detect_sector(domain)
+    sector_profile = get_sector_profile(sector)
+    findings["sector"] = {
+        "key":          sector_profile["key"],
+        "label":        sector_profile["label"],
+        "is_regulated": sector_profile["is_regulated"],
+        "framing":      sector_profile["framing"],
+        "frameworks":   sector_profile["frameworks"],
+    }
+    # Rewrite public-sector phrasing to commercial for non-regulated targets.
+    scoring = apply_sector_framing(scoring, sector)
+    # Reframe the WA threat-intel narrative the same way.
+    if sector_profile["framing"] == "commercial":
+        from utils.sector import _reframe_text
+        wa = findings.get("wa_intel", {})
+        if isinstance(wa, dict) and wa.get("risk_context"):
+            wa["risk_context"] = _reframe_text(wa["risk_context"])
+    log.info(f"[Sector] {domain} classified as '{sector}' "
+             f"({sector_profile['label']}, "
+             f"{'regulated' if sector_profile['is_regulated'] else 'non-regulated'})")
+
+    # ── Compliance mapping (runs after scoring, gated by sector) ─
+    findings['compliance'] = map_compliance(findings, scoring, sector=sector)
 
     # ── Phase 5A: Phishing Infrastructure Detection ─────────────
     log.info("[Phase5A] Running phishing infrastructure detection...")

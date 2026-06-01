@@ -30,6 +30,18 @@
                {% if scans_used >= scans_limit and scans_limit != -1 %}disabled{% endif %}
                style="font-size:15px;">
       </div>
+      <div class="form-group" style="margin-bottom:0; min-width:200px;">
+        <label>Sector</label>
+        <select name="sector"
+                {% if scans_used >= scans_limit and scans_limit != -1 %}disabled{% endif %}
+                style="width:100%; padding:10px 12px; border:1px solid var(--border);
+                       border-radius:4px; font-size:14px; background:white;">
+          <option value="auto" selected>Auto-detect</option>
+          {% for key, label in sector_choices %}
+          <option value="{{ key }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <button type="submit" class="btn btn-primary"
               {% if scans_used >= scans_limit and scans_limit != -1 %}disabled{% endif %}
               style="padding:10px 24px; font-size:14px;">
@@ -38,6 +50,7 @@
     </div>
     <p style="font-size:11px; color:var(--muted); margin-top:8px;">
       Passive OSINT only — no active exploitation.
+      Sector controls which compliance frameworks apply (e.g. BoG for financial, DPC for all).
       {% if scans_limit == -1 %}Unlimited scans (Enterprise).
       {% else %}Uses {{ scans_used }}/{{ scans_limit }} scans this month.{% endif %}
     </p>

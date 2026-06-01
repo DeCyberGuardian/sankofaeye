@@ -300,13 +300,17 @@ def _extract_check_flags(findings: dict, scoring: dict) -> set:
 
 # ─── Core mapper ───────────────────────────────────────────────────────────────
 
-def map_compliance(findings: dict, scoring: dict) -> dict:
+def map_compliance(findings: dict, scoring: dict, sector: str = None) -> dict:
     """
     Map scan findings to regulatory compliance frameworks.
 
     Args:
         findings: Aggregated findings dict from aggregator.py
         scoring:  Risk scoring dict from risk_scorer.py
+        sector:   Optional sector key. When provided, only frameworks that
+                  legitimately apply to that sector are mapped (e.g. a
+                  commercial domain gets DPC only, not BoG/NCA). When None,
+                  all frameworks are mapped (legacy behaviour).
 
     Returns:
         dict with per-framework compliance scores and control gaps
@@ -314,7 +318,18 @@ def map_compliance(findings: dict, scoring: dict) -> dict:
     flags   = _extract_check_flags(findings, scoring)
     results = {}
 
+    # Determine which frameworks apply to this sector.
+    allowed = None
+    if sector:
+        try:
+            from utils.sector import get_sector_profile
+            allowed = set(get_sector_profile(sector)["frameworks"])
+        except Exception:
+            allowed = None  # fall back to all frameworks on any import issue
+
     for fw_key, framework in FRAMEWORKS.items():
+        if allowed is not None and fw_key not in allowed:
+            continue
         controls    = framework["controls"]
         passed      = []
         failed      = []

@@ -448,10 +448,14 @@ def generate(
     ]))
     story.append(title_row)
 
+    sector_info = findings.get("sector", {})
+    sector_meta = ""
+    if sector_info.get("label"):
+        sector_meta = f"   |   Sector: {sector_info['label']}"
     meta_row = Table(
         [[Paragraph(
             f"Target: <b>{target}</b>   |   Date: {date_str}   |   "
-            f"Analyst: {analyst}   |   "
+            f"Analyst: {analyst}{sector_meta}   |   "
             f"Prepared by: {config.get('brand', {}).get('name', 'AfriWealth Cyber Intelligence')}",
             S["meta"]
         )]],
@@ -655,6 +659,50 @@ def generate(
         story.append(Paragraph("Email security data unavailable.", S["muted"]))
 
     story.append(Spacer(1, 3 * mm))
+
+    # ── ADDITIONAL FINDINGS (4+) ─────────────────────────────────────────────
+    # The "What We Found" block above highlights the top 3 in plain English.
+    # When a scan surfaces more, list the remainder here so the briefing can
+    # flow onto a second page rather than dropping detail. Kept concise.
+    extra_findings = scoring.get("findings", [])[3:]
+    if extra_findings:
+        story.append(Paragraph("Additional Findings", S["h2"]))
+        story.append(HRFlowable(width="100%", thickness=1,
+                                 color=C_PRIMARY, spaceAfter=3))
+        ef_rows = [[
+            Paragraph("#",        S["finding_title"]),
+            Paragraph("Finding",  S["finding_title"]),
+            Paragraph("Severity", S["finding_title"]),
+            Paragraph("What it means", S["finding_title"]),
+        ]]
+        for j, f in enumerate(extra_findings, start=4):
+            sev = str(f.get("severity", "low"))
+            sev_col = RATING_COLOURS.get(sev.lower(), C_MUTED)
+            ef_rows.append([
+                Paragraph(str(j), S["finding_body"]),
+                Paragraph(f.get("finding", ""), S["finding_body"]),
+                Paragraph(sev.upper(),
+                          ParagraphStyle("efsev", parent=S["finding_body"],
+                                         textColor=sev_col, fontName="Helvetica-Bold")),
+                Paragraph(_plain_english(f.get("finding", "")), S["finding_body"]),
+            ])
+        ef_table = Table(
+            ef_rows,
+            colWidths=[8 * mm, 52 * mm, 22 * mm,
+                       PAGE_W - 2 * MARGIN - 82 * mm],
+        )
+        ef_table.setStyle(TableStyle([
+            ("BACKGROUND",     (0, 0), (-1, 0), C_DARK),
+            ("TEXTCOLOR",      (0, 0), (-1, 0), C_WHITE),
+            ("GRID",           (0, 0), (-1, -1), 0.25, C_BORDER),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
+            ("VALIGN",         (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING",     (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING",  (0, 0), (-1, -1), 4),
+            ("LEFTPADDING",    (0, 0), (-1, -1), 5),
+        ]))
+        story.append(ef_table)
+        story.append(Spacer(1, 3 * mm))
 
     # ── CTA BOX ──────────────────────────────────────────────────────────────
     cta = Table(

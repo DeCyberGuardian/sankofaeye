@@ -19,7 +19,7 @@ scan_bp = Blueprint("scan", __name__)
 
 # ── Background scan worker ─────────────────────────────────────────────────────
 
-def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: str):
+def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: str, sector: str = None):
     """
     Runs in a background thread. Executes full SankofaEye scan pipeline,
     updates job status, saves results to DB.
@@ -82,7 +82,7 @@ def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: st
             # The scan itself logs progress — we do rough % mapping
             def _scan_with_progress():
                 _progress(10, "Enumerating subdomains...")
-                result = run_scan(domain, config, output_dir)
+                result = run_scan(domain, config, output_dir, sector=sector)
                 return result
 
             pdf_path = _scan_with_progress()
@@ -181,6 +181,7 @@ def dashboard():
         except Exception:
             pass
 
+    from utils.sector import sector_choices
     return render_template("dashboard.html",
                            recent=recent,
                            scans_used=scans_used,
@@ -189,7 +190,8 @@ def dashboard():
                            wa_intel=wa_intel,
                            momo=momo,
                            persona=persona,
-                           supplier=supplier)
+                           supplier=supplier,
+                           sector_choices=sector_choices())
 
 
 @scan_bp.route("/scan", methods=["POST"])
@@ -209,6 +211,14 @@ def submit_scan():
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9\-\.]{1,253}[a-zA-Z0-9]$", domain):
         flash("Invalid domain format.", "error")
         return redirect(url_for("scan.dashboard"))
+
+    # Sector — explicit choice from form, else auto-detect ("auto" or blank).
+    from utils.sector import SECTORS, detect_sector
+    sector_choice = (request.form.get("sector", "") or "").strip().lower()
+    if sector_choice in ("", "auto") or sector_choice not in SECTORS:
+        sector = detect_sector(domain)
+    else:
+        sector = sector_choice
 
     # Enforce monthly scan limit (-1 = unlimited)
     used  = current_user.scans_this_month()
@@ -245,7 +255,7 @@ def submit_scan():
     t = threading.Thread(
         target=_run_scan_worker,
         args=(current_app._get_current_object(), job_id, domain,
-              current_user.id, output_dir),
+              current_user.id, output_dir, sector),
         daemon=True,
     )
     t.start()

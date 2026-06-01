@@ -558,9 +558,17 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     if compliance:
         story.append(Paragraph("Regulatory Compliance Assessment", S["Section_H"]))
         story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
+        sector_info = findings.get("sector", {})
+        sector_line = ""
+        if sector_info.get("label"):
+            reg = "regulated" if sector_info.get("is_regulated") else "non-regulated"
+            sector_line = (
+                f" Target assessed as <b>{sector_info['label']}</b> ({reg}); "
+                f"only frameworks applicable to this sector are shown."
+            )
         story.append(Paragraph(
             "The following assessment maps passive scan findings to Ghana regulatory "
-            "frameworks. This is intelligence-led guidance — not legal advice.",
+            "frameworks. This is intelligence-led guidance — not legal advice." + sector_line,
             S["Body"]
         ))
         story.append(Spacer(1, 4*mm))
