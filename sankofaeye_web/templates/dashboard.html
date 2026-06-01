@@ -204,6 +204,56 @@
 </div>
 {% endif %}
 
+<!-- ── 4A. GHANA THREAT CALENDAR (Phase 5I) ── -->
+{% if threat_context and threat_context.active %}
+{% set tc = threat_context %}
+<div class="card" style="border-left:4px solid {{ tc.colour }};">
+  <h2 style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:9px;font-weight:700;color:white;background:{{ tc.colour }};
+                 padding:2px 9px;border-radius:10px;text-transform:uppercase;
+                 letter-spacing:0.5px;">{{ tc.urgency }}</span>
+    Ghana Threat Calendar
+  </h2>
+  <div style="display:flex;gap:12px;align-items:flex-start;">
+    <div style="font-size:24px;line-height:1;margin-top:2px;">
+      {% if tc.urgency == 'CRITICAL' %}🔴{% elif tc.urgency == 'HIGH' %}🟠{% elif tc.urgency == 'MEDIUM' %}🟡{% else %}🔵{% endif %}
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">
+        {{ tc.top.label }}
+      </div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.55;">
+        {{ tc.top.context }}
+      </div>
+      {% if tc.top.threat_types %}
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+        {% for t in tc.top.threat_types %}
+        <span style="font-size:10px;color:{{ tc.colour }};border:1px solid {{ tc.colour }};
+                     border-radius:3px;padding:2px 7px;text-transform:uppercase;
+                     letter-spacing:0.3px;">{{ t }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if tc.periods|length > 1 %}
+  <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px;">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">
+      Other active windows:
+    </div>
+    {% for p in tc.periods[1:] %}
+    {% set pc = '#D32F2F' if p.urgency == 'CRITICAL' else '#F57C00' if p.urgency == 'HIGH' else '#FBC02D' if p.urgency == 'MEDIUM' else '#008080' %}
+    <div style="display:flex;gap:8px;align-items:baseline;padding:3px 0;">
+      <span style="font-size:9px;font-weight:700;color:{{ pc }};min-width:60px;">{{ p.urgency }}</span>
+      <span style="font-size:11px;color:var(--text);">{{ p.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- ── 4B. DARK WEB PERSONA MONITORING (Phase 5F) ── -->
 {% if persona and persona.total and persona.total > 0 %}
 <div class="card">

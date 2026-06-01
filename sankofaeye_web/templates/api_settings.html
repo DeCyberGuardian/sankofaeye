@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}API Settings{% endblock %}
+
+{% block page_header %}
+<div class="page-header">
+  <div class="container">
+    <h1>API Settings</h1>
+    <p>Programmatic access for SOC automation and SIEM ingestion</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:780px;">
+
+  <!-- API Key -->
+  <div class="card">
+    <h2>Your API Key</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Pass this in the <code style="background:var(--bg);padding:1px 5px;border-radius:3px;">X-API-Key</code>
+      header on every request. Treat it like a password — anyone with this key can scan on your account.
+    </p>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input id="api-key-field" type="text" readonly
+             value="{{ current_user.api_key }}"
+             style="flex:1;min-width:280px;padding:10px 12px;border:1px solid var(--border);
+                    border-radius:4px;font-family:monospace;font-size:13px;background:var(--bg);">
+      <button type="button" id="copy-key-btn" class="btn btn-outline"
+              onclick="copyKey()">Copy</button>
+      <form method="POST" action="{{ url_for('api.api_regenerate_key') }}"
+            style="display:inline;"
+            onsubmit="return confirm('Regenerate your API key? The current key will stop working immediately and any integrations using it will break.');">
+        <button type="submit" class="btn btn-danger">Regenerate</button>
+      </form>
+    </div>
+
+    <div style="margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      <div style="border:1px solid var(--border);border-radius:6px;padding:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;">Plan</div>
+        <div style="font-size:16px;font-weight:700;color:var(--teal);">{{ current_user.plan | capitalize }}</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:6px;padding:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;">Rate Limit</div>
+        <div style="font-size:16px;font-weight:700;color:var(--teal);">{{ rate_limit }}/hr</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:6px;padding:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;">Scans Used</div>
+        <div style="font-size:16px;font-weight:700;color:var(--teal);">
+          {{ current_user.scans_this_month() }}{% if current_user.scan_limit != -1 %}/{{ current_user.scan_limit }}{% else %} (∞){% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endpoints -->
+  <div class="card">
+    <h2>Endpoints</h2>
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>POST</strong></td><td style="font-family:monospace;font-size:12px;">/api/v1/scan</td><td style="font-size:12px;color:var(--muted);">Submit a domain — returns a job_id</td></tr>
+        <tr><td><strong>GET</strong></td><td style="font-family:monospace;font-size:12px;">/api/v1/scan/{job_id}</td><td style="font-size:12px;color:var(--muted);">Poll status; full results when complete</td></tr>
+        <tr><td><strong>GET</strong></td><td style="font-family:monospace;font-size:12px;">/api/v1/export/splunk/{job_id}</td><td style="font-size:12px;color:var(--muted);">Findings as Splunk HEC events</td></tr>
+        <tr><td><strong>GET</strong></td><td style="font-family:monospace;font-size:12px;">/api/v1/export/elastic/{job_id}</td><td style="font-size:12px;color:var(--muted);">Findings as Elastic ECS documents</td></tr>
+        <tr><td><strong>GET</strong></td><td style="font-family:monospace;font-size:12px;">/api/v1/me</td><td style="font-size:12px;color:var(--muted);">Plan, usage, and key info</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px;">
+      Add <code style="background:var(--bg);padding:1px 5px;border-radius:3px;">?ndjson=1</code>
+      to either export endpoint for newline-delimited output (ready for HEC / Filebeat ingestion).
+    </p>
+  </div>
+
+  <!-- Quickstart -->
+  <div class="card">
+    <h2>Quickstart</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Submit a scan:</p>
+    <pre style="background:#1e1e1e;color:#e0e0e0;padding:14px;border-radius:6px;
+                font-size:12px;overflow-x:auto;line-height:1.5;"><code>curl -X POST {{ request.url_root }}api/v1/scan \
+  -H "X-API-Key: {{ current_user.api_key }}" \
+  -H "Content-Type: application/json" \
+  -d '{"domain": "example.com", "sector": "financial"}'</code></pre>
+
+    <p style="font-size:12px;color:var(--muted);margin:14px 0 8px;">Fetch results, then export to Splunk:</p>
+    <pre style="background:#1e1e1e;color:#e0e0e0;padding:14px;border-radius:6px;
+                font-size:12px;overflow-x:auto;line-height:1.5;"><code>curl {{ request.url_root }}api/v1/export/splunk/JOB_ID?ndjson=1 \
+  -H "X-API-Key: {{ current_user.api_key }}"</code></pre>
+  </div>
+
+</div>
+
+<script>
+function copyKey() {
+  const field = document.getElementById('api-key-field');
+  field.select();
+  field.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(field.value).then(function () {
+    const btn = document.getElementById('copy-key-btn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(function () { btn.textContent = original; }, 1500);
+  });
+}
+</script>
+{% endblock %}

@@ -43,7 +43,7 @@
 
       <div class="form-group">
         <label>Active Channels</label>
-        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">
           {% set active = (current_user.alert_channels or 'email').split(',') %}
           {% for ch, icon, desc in [
             ('email',    '📧', 'Email'),
@@ -51,15 +51,19 @@
             ('sms',      '📱', 'SMS'),
             ('webhook',  '🔗', 'Webhook'),
           ] %}
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
-                        padding:10px 14px;border:1px solid var(--border);border-radius:4px;
-                        font-size:13px;{% if ch in active %}border-color:var(--teal);background:rgba(0,128,128,0.05);{% endif %}">
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+                        padding:10px 16px;border:1px solid var(--border);border-radius:6px;
+                        font-size:13px;white-space:nowrap;user-select:none;
+                        {% if ch in active %}border-color:var(--teal);background:rgba(0,128,128,0.06);font-weight:600;{% endif %}">
             <input type="checkbox" name="channels" value="{{ ch }}"
                    {% if ch in active %}checked{% endif %}
-                   style="accent-color:var(--teal);">
-            {{ icon }} {{ desc }}
+                   style="accent-color:var(--teal);width:16px;height:16px;margin:0;flex:none;">
+            <span>{{ icon }} {{ desc }}</span>
           </label>
           {% endfor %}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          Tap a channel to toggle it. Email is always recommended as a baseline.
         </div>
       </div>
 

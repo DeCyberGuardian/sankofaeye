@@ -182,6 +182,13 @@ def dashboard():
             pass
 
     from utils.sector import sector_choices
+    # ── Phase 5I: Ghana Threat Calendar — active context for today ──
+    try:
+        from utils.threat_calendar import get_active_threats
+        threat_context = get_active_threats()
+    except Exception:
+        threat_context = {"active": False}
+
     return render_template("dashboard.html",
                            recent=recent,
                            scans_used=scans_used,
@@ -191,7 +198,8 @@ def dashboard():
                            momo=momo,
                            persona=persona,
                            supplier=supplier,
-                           sector_choices=sector_choices())
+                           sector_choices=sector_choices(),
+                           threat_context=threat_context)
 
 
 @scan_bp.route("/scan", methods=["POST"])

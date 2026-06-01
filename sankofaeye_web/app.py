@@ -55,6 +55,7 @@ from routes.reports import reports_bp
 from routes.billing import billing_bp
 from routes.tracker import tracker_bp
 from routes.intelligence import intelligence_bp
+from routes.api import api_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(scan_bp)
@@ -62,6 +63,7 @@ app.register_blueprint(reports_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(tracker_bp)
 app.register_blueprint(intelligence_bp)
+app.register_blueprint(api_bp)
 
 
 @app.context_processor
@@ -110,6 +112,8 @@ class User(db.Model, UserMixin):
     alert_phone             = db.Column(db.String(20),  nullable=True)
     alert_channels          = db.Column(db.String(100), default="email")
     alert_webhook           = db.Column(db.String(512), nullable=True)
+    api_key                 = db.Column(db.String(64),  unique=True, nullable=True,
+                                        default=lambda: uuid.uuid4().hex)
     scans                   = db.relationship("ScanJob", backref="user", lazy=True)
 
     def set_password(self, pw):
