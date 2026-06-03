@@ -114,6 +114,7 @@ Board-ready PDF for CISO and board. Plain English, no CVE numbers. Risk score, t
 | Threat Calendar | Surfaces time-sensitive seasonal risk (Q-end BEC, year-end, elections, salary windows) (Phase 5I). |
 | Tech Fingerprint | URLScan-based tech stack detection (30+ patterns). CVE risk class mapping. |
 | Email Scorecard | A–F grade on SPF / DKIM / DMARC. Weighted 0–100 score. |
+| HTTP Security Headers | A–F grade on HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy. **Non-intrusive active** — one direct GET to the target (see Ethical & Legal). Off by default. |
 | Phishing Detector | Monitors crt.sh, WHOIS, and URLScan for lookalike domains targeting your brand. Pre-crime intelligence. |
 | Benchmarking | Anonymised peer comparison — where does your score rank within your sector in Ghana? |
 | Remediation Tracker | Tracks finding lifecycle: OPEN → IN_PROGRESS → RESOLVED → VERIFIED → REOPENED. Auto-verifies fixes. |
@@ -388,6 +389,7 @@ sankofaeye/
 │   ├── threat_calendar.py               # Ghana seasonal threat context (Phase 5I)
 │   ├── tech_fingerprint.py              # Technology stack detection + CVE mapping
 │   ├── email_scorer.py                  # A–F Email Security Scorecard
+│   ├── headers_scorer.py                # A–F HTTP Security Headers (non-intrusive active)
 │   ├── benchmarking.py                  # Anonymised peer sector benchmarking
 │   ├── remediation_tracker.py           # Finding lifecycle tracking + auto-verification
 │   ├── logger.py                        # Coloured console + file logging
@@ -529,7 +531,9 @@ Payment via **Paystack** (MTN MoMo, Telecel Cash, AirtelTigo Money, card, bank t
 
 > **Authorised use only.**
 
-SankofaEye performs passive reconnaissance only — no packets are sent to target systems.
+SankofaEye is **passive-first**: with one clearly-labelled exception, it gathers everything from third-party OSINT sources and never contacts the target directly.
+
+**The one exception — HTTP Security Headers (non-intrusive active).** When enabled (`modules.security_headers`, off by default), this single module makes one ordinary HTTP GET to the target's web server to read the security headers it returns to every visitor. This is the same request any browser makes — no authentication, no payloads, no vulnerability testing — but unlike the passive modules it *will* appear in the target's access logs. Every report that includes it discloses this in the section text, so the one direct request is never hidden. Leave it disabled for unsolicited/prospecting scans; enable it only for domains you own or are authorised to assess.
 
 - Only scan domains you **own** or have **explicit written authorisation** to assess
 - Handle credential data and report outputs with strict access controls — all reports are **CONFIDENTIAL**
@@ -567,6 +571,8 @@ SankofaEye performs passive reconnaissance only — no packets are sent to targe
 - [x] **Phase 5I — Ghana Threat Calendar (elections, quarter-end, national events)**
 - [x] **Phase 5J — REST API (`/api/v1/scan`) + SIEM export (Splunk HEC / Elastic ECS)**
 - [x] **Sector-aware reporting (6 sectors, auto-detect + override, framework gating)**
+- [x] **HTTP Security Headers scorecard (A–F; non-intrusive active, opt-in)**
+- [x] **Sector-aware WA threat-actor selection (commercial targets exclude bank/gov-only actors)**
 
 **In Progress 🔄**
 - [ ] Aegis-INT DRIB integration (Enterprise — decision-ready intelligence briefs)
