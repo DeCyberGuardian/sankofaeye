@@ -162,6 +162,7 @@ def dashboard():
     momo       = {}
     persona    = {}
     supplier   = {}
+    sec_headers = {}
     last_scan  = (ScanJob.query
                   .filter_by(user_id=current_user.id, status="complete")
                   .order_by(ScanJob.created_at.desc())
@@ -178,6 +179,7 @@ def dashboard():
                 momo       = findings.get("momo_exposure", {})
                 persona    = findings.get("persona_monitoring", {})
                 supplier   = findings.get("supplier_risk", {})
+                sec_headers = findings.get("security_headers", {})
         except Exception:
             pass
 
@@ -198,6 +200,7 @@ def dashboard():
                            momo=momo,
                            persona=persona,
                            supplier=supplier,
+                           sec_headers=sec_headers,
                            sector_choices=sector_choices(),
                            threat_context=threat_context)
 

@@ -403,12 +403,16 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     story.append(Spacer(1, 6*mm))
 
     # ── VISUAL ATTACK PATH INJECTION ──────────────────────────
-    if attack_path:
-        story.append(Paragraph("Visualized Threat Killchain Flow", S["Section_H"]))
-        story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=4))
-        # Call the flowchart generator imported from utils
+    _has_kc = bool(attack_path) and (
+        attack_path.get("has_path")
+        or attack_path.get("stages")
+        or attack_path.get("path")
+    )
+    if _has_kc:
         killchain_flowable = get_killchain_flowable(attack_path)
         if killchain_flowable:
+            story.append(Paragraph("Visualized Threat Killchain Flow", S["Section_H"]))
+            story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=4))
             story.append(killchain_flowable)
             story.append(Spacer(1, 6*mm))
 
@@ -669,6 +673,57 @@ def generate(findings: dict, scoring: dict, config: dict, output_dir: str) -> st
     actors   = wa_intel.get("relevant_actors", [])
     incidents= wa_intel.get("relevant_incidents", [])
     ioc_hits = wa_intel.get("ioc_matches", [])
+
+    # ── HTTP Security Headers (non-intrusive active) ──────────
+    sh = findings.get("security_headers", {})
+    if sh and sh.get("reachable"):
+        story.append(Paragraph("HTTP Security Headers", S["Section_H"]))
+        story.append(HRFlowable(width="100%", thickness=1, color=C_PRIMARY, spaceAfter=6))
+        story.append(Paragraph(
+            "<b>Non-intrusive active check.</b> Unlike SankofaEye's passive OSINT "
+            "modules, this grade comes from a single direct HTTP request to the "
+            "target's web server, reading the security headers it returns to every "
+            "visitor. No authentication, payloads, or vulnerability tests were "
+            "performed.", S["Body"]))
+        story.append(Spacer(1, 3*mm))
+
+        grade_col = colors.HexColor(sh.get("colour_hex", "#D32F2F"))
+        story.append(Paragraph(
+            f"Grade: <b><font color='{sh.get('colour_hex', '#D32F2F')}'>"
+            f"{sh.get('grade', 'F')}</font></b> "
+            f"({sh.get('score', 0)}/{sh.get('max_score', 100)}) — "
+            f"{sh.get('rating', 'critical').upper()}", S["Body"]))
+        story.append(Spacer(1, 2*mm))
+
+        _HDR_LABELS = {
+            "strict-transport-security": "HSTS",
+            "content-security-policy":   "Content-Security-Policy",
+            "x-frame-options":           "X-Frame-Options",
+            "x-content-type-options":    "X-Content-Type-Options",
+            "referrer-policy":           "Referrer-Policy",
+            "permissions-policy":        "Permissions-Policy",
+        }
+        rows = [[Paragraph("<b>Header</b>", S["Body"]),
+                 Paragraph("<b>Status</b>", S["Body"])]]
+        for key, label in _HDR_LABELS.items():
+            present = sh.get("present", {}).get(key, False)
+            mark = ("<font color='#388E3C'>Present</font>" if present
+                    else "<font color='#D32F2F'>Missing</font>")
+            rows.append([Paragraph(label, S["Body"]),
+                         Paragraph(mark, S["Body"])])
+        t = Table(rows, colWidths=[PAGE_W - 2*MARGIN - 40*mm, 40*mm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND",     (0, 0), (-1, 0), C_DARK),
+            ("TEXTCOLOR",      (0, 0), (-1, 0), C_WHITE),
+            ("GRID",           (0, 0), (-1, -1), 0.25, C_BORDER),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [C_WHITE, C_BG_LIGHT]),
+            ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING",     (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING",  (0, 0), (-1, -1), 4),
+            ("LEFTPADDING",    (0, 0), (-1, -1), 6),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 6*mm))
 
     if actors or incidents or ioc_hits:
         story.append(Paragraph("West Africa Threat Intelligence Context", S["Section_H"]))

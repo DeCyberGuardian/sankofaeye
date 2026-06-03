@@ -353,6 +353,48 @@
 </div>
 {% endif %}
 
+<!-- ── 5C. HTTP SECURITY HEADERS (non-intrusive active) ── -->
+{% if sec_headers and sec_headers.reachable %}
+<div class="card" style="border-left:4px solid {{ sec_headers.colour_hex }};">
+  <h2 style="display:flex;align-items:center;gap:8px;">
+    HTTP Security Headers
+    <span style="font-size:9px;font-weight:700;color:#fff;background:#F57C00;
+                 padding:2px 8px;border-radius:10px;text-transform:uppercase;
+                 letter-spacing:0.4px;">non-intrusive active</span>
+  </h2>
+  <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">
+    Grade from a single direct request to the target's web server (reads headers
+    sent to every visitor). No authentication, payloads, or vulnerability tests.
+  </p>
+  <div style="display:flex;gap:16px;align-items:center;">
+    <div style="text-align:center;padding:12px 18px;background:var(--bg);
+                border-radius:8px;border:2px solid {{ sec_headers.colour_hex }};">
+      <div style="font-size:32px;font-weight:800;color:{{ sec_headers.colour_hex }};line-height:1;">
+        {{ sec_headers.grade }}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">
+        {{ sec_headers.score }}/{{ sec_headers.max_score }}</div>
+    </div>
+    <div style="flex:1;display:flex;flex-wrap:wrap;gap:6px;">
+      {% set labels = {
+        'strict-transport-security':'HSTS',
+        'content-security-policy':'CSP',
+        'x-frame-options':'X-Frame-Options',
+        'x-content-type-options':'X-Content-Type-Options',
+        'referrer-policy':'Referrer-Policy',
+        'permissions-policy':'Permissions-Policy'} %}
+      {% for key, label in labels.items() %}
+      {% set ok = sec_headers.present.get(key, False) %}
+      <span style="font-size:11px;padding:3px 9px;border-radius:3px;
+                   border:1px solid {{ '#388E3C' if ok else '#D32F2F' }};
+                   color:{{ '#388E3C' if ok else '#D32F2F' }};">
+        {{ '✓' if ok else '✗' }} {{ label }}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── 5B. SUPPLIER / THIRD-PARTY RISK (Phase 5G) ── -->
 {% if supplier and supplier.total_vendors and supplier.total_vendors > 0 %}
 <div class="card">

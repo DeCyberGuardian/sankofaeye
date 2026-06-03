@@ -27,6 +27,10 @@ modules:
   hudsonrock: true       # Compromised employee search via HudsonRock API
   dns: true              # DNS security posture (SPF / DMARC / DKIM)
   ssl: true              # SSL certificate checks
+  security_headers: false  # HTTP security-headers grade — NON-INTRUSIVE ACTIVE:
+                           # makes ONE direct GET to the target (appears in their
+                           # logs). Off by default. Enable only for domains you
+                           # own or are authorised to assess.
 
 # ── Timeouts (seconds) ──────────────────────────────────────
 timeouts:

@@ -272,18 +272,64 @@ def run_scan(domain: str, config: dict, output_dir: str, sector: str = None) -> 
     }
     # Rewrite public-sector phrasing to commercial for non-regulated targets.
     scoring = apply_sector_framing(scoring, sector)
-    # Reframe the WA threat-intel narrative the same way.
-    if sector_profile["framing"] == "commercial":
-        from utils.sector import _reframe_text
-        wa = findings.get("wa_intel", {})
-        if isinstance(wa, dict) and wa.get("risk_context"):
-            wa["risk_context"] = _reframe_text(wa["risk_context"])
+    # Re-run WA threat-intel cross-reference now that the sector is resolved,
+    # so the actor lineup and narrative reflect the real sector (the aggregator
+    # runs it earlier without sector context). Falls back gracefully.
+    try:
+        from intel.wa_threatdb_module import cross_reference as _wa_xref
+        _wa = _wa_xref(domain, findings, sector_key=sector)
+        if isinstance(_wa, dict) and _wa.get("status") == "ok":
+            findings["wa_intel"] = _wa
+    except Exception as e:
+        log.warning(f"[Sector] WA re-cross-reference skipped: {e}")
+        # If re-run failed, at least reframe the existing narrative.
+        if sector_profile["framing"] == "commercial":
+            from utils.sector import _reframe_text
+            wa = findings.get("wa_intel", {})
+            if isinstance(wa, dict) and wa.get("risk_context"):
+                wa["risk_context"] = _reframe_text(wa["risk_context"])
     log.info(f"[Sector] {domain} classified as '{sector}' "
              f"({sector_profile['label']}, "
              f"{'regulated' if sector_profile['is_regulated'] else 'non-regulated'})")
 
     # ── Compliance mapping (runs after scoring, gated by sector) ─
     findings['compliance'] = map_compliance(findings, scoring, sector=sector)
+
+    # ── HTTP Security Headers (NON-INTRUSIVE ACTIVE — one GET) ──
+    # Disabled by default unless modules.security_headers is true, because
+    # this is the one module that makes a direct request to the target.
+    if config.get("modules", {}).get("security_headers", False):
+        log.info("[Headers] Non-intrusive active security-headers check...")
+        try:
+            from utils.headers_scorer import score_security_headers
+            hdr_timeout = config.get("timeouts", {}).get("security_headers", 15)
+            card = score_security_headers(domain, timeout=hdr_timeout)
+            findings["security_headers"] = {
+                "reachable":  card.reachable,
+                "final_url":  card.final_url,
+                "grade":      card.grade,
+                "score":      card.score,
+                "max_score":  card.max_score,
+                "rating":     card.rating,
+                "colour_hex": card.colour_hex,
+                "present":    card.present,
+                "missing":    card.missing,
+                "note":       card.note,
+                "module_type": "non-intrusive active",
+            }
+            # Merge header findings into the scored findings list, applying
+            # the same sector framing so language stays consistent.
+            if card.findings:
+                framed = apply_sector_framing({"findings": card.findings}, sector)
+                scoring.setdefault("findings", []).extend(framed["findings"])
+                scoring["finding_count"] = len(scoring["findings"])
+            log.info(f"[Headers] Grade {card.grade} ({card.score}/100), "
+                     f"{len(card.missing)} missing")
+        except Exception as e:
+            log.warning(f"[Headers] Module error: {e}")
+            findings["security_headers"] = {}
+    else:
+        findings["security_headers"] = {}
 
     # ── Phase 5A: Phishing Infrastructure Detection ─────────────
     log.info("[Phase5A] Running phishing infrastructure detection...")
@@ -411,22 +457,30 @@ def run_scan(domain: str, config: dict, output_dir: str, sector: str = None) -> 
         findings["persona_monitoring"] = {}
 
     # ── Phase 5G: Supplier / Third-Party Risk Scoring ────────────
-    log.info("[Phase5G] Assessing supplier / third-party risk...")
-    try:
-        supplier_risk = assess_suppliers(config)
-        findings["supplier_risk"] = supplier_risk
-        if supplier_risk.get("high_risk_count", 0) > 0:
-            wl = supplier_risk.get("weakest_link", {})
-            log.warning(
-                f"[Phase5G] ⚠️ {supplier_risk['high_risk_count']} high-risk "
-                f"vendor(s). Weakest: {wl.get('name')} ({wl.get('risk_score')}/100)"
-            )
-            # BoG CISD Section 6 compliance hook
-            findings["compliance"] = apply_bog_supplier_hook(
-                findings.get("compliance", {}), supplier_risk
-            )
-    except Exception as e:
-        log.warning(f"[Phase5G] Supplier risk error: {e}")
+    # Only relevant for sectors whose profile includes a supplier section
+    # (financial). Skipped for commercial/government/etc. so reports don't
+    # carry a banking-style supplier block that doesn't fit the target.
+    if "supplier" in sector_profile.get("sections", []):
+        log.info("[Phase5G] Assessing supplier / third-party risk...")
+        try:
+            supplier_risk = assess_suppliers(config)
+            findings["supplier_risk"] = supplier_risk
+            if supplier_risk.get("high_risk_count", 0) > 0:
+                wl = supplier_risk.get("weakest_link", {})
+                log.warning(
+                    f"[Phase5G] ⚠️ {supplier_risk['high_risk_count']} high-risk "
+                    f"vendor(s). Weakest: {wl.get('name')} ({wl.get('risk_score')}/100)"
+                )
+                # BoG CISD Section 6 compliance hook
+                findings["compliance"] = apply_bog_supplier_hook(
+                    findings.get("compliance", {}), supplier_risk
+                )
+        except Exception as e:
+            log.warning(f"[Phase5G] Supplier risk error: {e}")
+            findings["supplier_risk"] = {}
+    else:
+        log.info(f"[Phase5G] Supplier risk skipped — not applicable to "
+                 f"'{sector}' sector")
         findings["supplier_risk"] = {}
 
     # ── Save JSON dump (after all enrichment) ─────────────────
