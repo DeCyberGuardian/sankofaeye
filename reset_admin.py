@@ -15,8 +15,8 @@ import os
 import sys
 
 # ── EDIT THESE ──────────────────────────────────────────────
-ADMIN_EMAIL    = "admin@afriwealthci.com"
-ADMIN_PASSWORD = "SankofahEye2026!"
+ADMIN_EMAIL    = "stephen@afriwealthintel.com"
+ADMIN_PASSWORD = "SankofaEye2026!"
 ADMIN_PLAN     = "professional"   # free | starter | professional | enterprise
 # ────────────────────────────────────────────────────────────
 

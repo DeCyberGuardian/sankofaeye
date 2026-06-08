@@ -235,7 +235,7 @@ STRIPE_ENTERPRISE_PRICE_ID=price_...
 # Scheduled scan email delivery
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=reports@afriwealthci.com
+SMTP_USER=reports@afriwealthintel.com
 SMTP_PASSWORD=your_app_password
 APP_BASE_URL=https://yourdomain.com
 ```
@@ -284,7 +284,7 @@ python sankofaeye.py --domain example.com --config config.yaml
 python sankofaeye_web/app.py
 
 # Access at http://localhost:5000
-# Default admin: admin@afriwealthci.com / SankofaEye2026!
+# Default admin: admin@afriwealthintel.com / SankofaEye2026!
 ```
 
 > **macOS note:** Disable AirPlay Receiver in System Settings if port 5000 is in use,
@@ -458,7 +458,7 @@ brand:
   version:  1.0.0
   name:     AfriWealth Cyber Intelligence
   analyst:  DeCyberGuardian
-  website:  https://afriwealthci.com
+  website:  https://afriwealthintel.com
 
 modules:
   subfinder:    true
@@ -597,7 +597,7 @@ Cyber Threat Intelligence Practitioner | Accra, Ghana
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-DeCyberGuardian-008080?style=flat-square&logo=linkedin)](https://linkedin.com/in/decyberguardian)
 [![X](https://img.shields.io/badge/X-@DeCyberGuardian-FFD700?style=flat-square&logo=x)](https://x.com/decyberguardian)
-[![Website](https://img.shields.io/badge/Website-afriwealthci.com-008080?style=flat-square)](https://afriwealthci.com)
+[![Website](https://img.shields.io/badge/Website-afriwealthintel.com-008080?style=flat-square)](https://afriwealthintel.com)
 
 ---
 

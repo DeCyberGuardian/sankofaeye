@@ -50,7 +50,7 @@ _FRAUD_KEYWORDS = [
 _DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (compatible; SankofaEye/1.0; "
-        "+https://afriwealthci.com)"
+        "+https://afriwealthintel.com)"
     )
 }
 

@@ -339,7 +339,7 @@ def _hf(canvas, doc, target: str, date_str: str, config: dict):
                       "Passive reconnaissance only — No active exploitation performed")
     canvas.drawRightString(w - MARGIN, 4 * mm,
                            f"AfriWealth Cyber Intelligence  |  "
-                           f"{config['brand'].get('website', 'afriwealthci.com')}")
+                           f"{config['brand'].get('website', 'afriwealthintel.com')}")
     canvas.restoreState()
 
 
@@ -710,7 +710,7 @@ def generate(
             "<b>Need help acting on these findings?</b> AfriWealth Cyber Intelligence "
             "provides hands-on remediation support, ongoing passive monitoring, and "
             "threat-informed advisory services for organisations across Ghana and West Africa. "
-            f"Contact: <b>{config.get('brand', {}).get('website', 'afriwealthci.com')}</b>",
+            f"Contact: <b>{config.get('brand', {}).get('website', 'afriwealthintel.com')}</b>",
             S["cta"]
         )]],
         colWidths=[PAGE_W - 2 * MARGIN - 2],

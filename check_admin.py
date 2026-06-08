@@ -5,7 +5,7 @@ Run from repo root:  python check_admin.py
 """
 import os, sys
 
-EMAIL    = "admin@afriwealthci.com"
+EMAIL    = "stephen@afriwealthintel.com"
 PASSWORD = "SankofahEye2026!"   # <-- put the EXACT password you're typing at login
 
 HERE    = os.path.dirname(os.path.abspath(__file__))

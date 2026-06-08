@@ -125,7 +125,7 @@ def _fetch_headers(domain: str, timeout: int = 15):
         url = f"{scheme}://{domain}"
         try:
             req = Request(url, method="GET", headers={
-                "User-Agent": "SankofaEye/1.0 (+https://afriwealthci.com; passive-assessment)"
+                "User-Agent": "SankofaEye/1.0 (+https://afriwealthintel.com; passive-assessment)"
             })
             ctx = ssl.create_default_context()
             ctx.check_hostname = False

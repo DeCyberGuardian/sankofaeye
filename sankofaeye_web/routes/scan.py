@@ -49,7 +49,7 @@ def _run_scan_worker(app, job_id: str, domain: str, user_id: int, output_dir: st
                         "tool": "SankofaEye", "version": "1.0.0",
                         "name": "AfriWealth Cyber Intelligence",
                         "analyst": "DeCyberGuardian",
-                        "website": "https://afriwealthci.com",
+                        "website": "https://afriwealthintel.com",
                     },
                     "modules": {
                         "subfinder": True, "theharvester": True, "shodan": True,

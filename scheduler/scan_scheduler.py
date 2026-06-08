@@ -112,9 +112,9 @@ def send_report_email(
     Required .env variables:
         SMTP_HOST       e.g. smtp.gmail.com
         SMTP_PORT       e.g. 587
-        SMTP_USER       e.g. reports@afriwealthci.com
+        SMTP_USER       e.g. reports@afriwealthintel.com
         SMTP_PASSWORD   app password
-        SMTP_FROM       AfriWealth Cyber Intelligence <reports@afriwealthci.com>
+        SMTP_FROM       AfriWealth Cyber Intelligence <reports@afriwealthintel.com>
     """
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -210,7 +210,7 @@ def send_report_email(
     
     <div style="background:#F5F5F5;padding:14px 20px;font-size:11px;color:#757575;
                 border-top:1px solid #E0E0E0;">
-      AfriWealth Cyber Intelligence | afriwealthci.com<br>
+      AfriWealth Cyber Intelligence | afriwealthintel.com<br>
       Passive reconnaissance only — no active exploitation performed.
     </div>
     
@@ -329,7 +329,7 @@ def run_all_scheduled(app_instance):
             config = {"brand": {"tool": "SankofaEye", "version": "1.0.0",
                                 "name": "AfriWealth Cyber Intelligence",
                                 "analyst": "DeCyberGuardian",
-                                "website": "https://afriwealthci.com"},
+                                "website": "https://afriwealthintel.com"},
                       "modules": {}, "timeouts": {},
                       "output": {"pdf_report": True, "json_dump": True,
                                  "log_directory": "logs", "log_level": "INFO"},

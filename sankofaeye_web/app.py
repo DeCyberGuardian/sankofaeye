@@ -169,9 +169,9 @@ if __name__ == "__main__":
         db.create_all()
         # Create a default admin user if no users exist
         if not User.query.first():
-            admin = User(email="admin@afriwealthci.com", plan="professional")
+            admin = User(email="stephen@afriwealthintel.com", plan="professional")
             admin.set_password("SankofaEye2026!")
             db.session.add(admin)
             db.session.commit()
-            print("[setup] Default admin created: admin@afriwealthci.com")
+            print("[setup] Default admin created: stephen@afriwealthintel.com")
     app.run(debug=True, host="0.0.0.0", port=5000)

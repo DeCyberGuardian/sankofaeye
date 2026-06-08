@@ -81,7 +81,7 @@ def _build_message(alert_type: str, domain: str, detail: str,
             f"{emoji} SankofaEye [{urgency}]\n"
             f"Domain: {domain}\n"
             f"{detail}{score_str}\n"
-            f"afriwealthci.com\n{now}"
+            f"afriwealthintel.com\n{now}"
         )
         return msg[:320]  # WhatsApp/SMS safe length
 
@@ -107,7 +107,7 @@ def _build_message(alert_type: str, domain: str, detail: str,
           <p><strong>Domain:</strong> {domain}</p>
           <p style="margin:12px 0;">{detail}</p>
           {f'<p><strong>Current Risk Score:</strong> <span style="color:{urgency_colour};font-size:18px;font-weight:bold;">{score}/100</span></p>' if score is not None else ''}
-          <a href="https://afriwealthci.com/dashboard"
+          <a href="https://afriwealthintel.com/dashboard"
              style="display:inline-block;background:#008080;color:white;
                     padding:10px 20px;border-radius:4px;text-decoration:none;
                     font-size:13px;margin-top:8px;">
@@ -116,7 +116,7 @@ def _build_message(alert_type: str, domain: str, detail: str,
           <p style="font-size:11px;color:#757575;margin-top:20px;">{now}</p>
         </div>
         <div style="background:#F5F5F5;padding:12px 20px;font-size:11px;color:#757575;">
-          AfriWealth Cyber Intelligence | afriwealthci.com<br>
+          AfriWealth Cyber Intelligence | afriwealthintel.com<br>
           Passive reconnaissance only.
         </div>
         </body></html>
@@ -323,7 +323,7 @@ def send_webhook_alert(
                     "color":  urgency_colour,
                     "title":  f"{emoji} SankofaEye: {alert_type.replace('_', ' ')} — {domain}",
                     "text":   f"{detail}{score_str}",
-                    "footer": "AfriWealth Cyber Intelligence | afriwealthci.com",
+                    "footer": "AfriWealth Cyber Intelligence | afriwealthintel.com",
                     "ts":     int(datetime.utcnow().timestamp()),
                     "fields": [
                         {"title": "Urgency", "value": urgency,  "short": True},

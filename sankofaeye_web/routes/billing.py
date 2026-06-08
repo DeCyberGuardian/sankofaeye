@@ -180,7 +180,7 @@ def checkout(plan):
         return redirect(url_for("billing.stripe_checkout", plan=plan))
     else:
         flash("Payment processing is not yet configured. "
-              "Contact hello@afriwealthci.com to upgrade.", "warning")
+              "Contact stephen@afriwealthintel.com to upgrade.", "warning")
         return redirect(url_for("scan.dashboard"))
 
 
@@ -240,7 +240,7 @@ def paystack_callback():
                 )
             else:
                 flash("Payment received but plan upgrade failed. "
-                      "Contact hello@afriwealthci.com.", "warning")
+                      "Contact stephen@afriwealthintel.com.", "warning")
         else:
             flash(f"Payment not completed (status: {status}). "
                   "No charge was made.", "warning")
@@ -308,7 +308,7 @@ def stripe_checkout(plan):
 
         price_id = PLAN_TO_STRIPE_PRICE.get(plan, "")
         if not price_id or "placeholder" in price_id:
-            flash("Stripe price not configured. Contact hello@afriwealthci.com.", "warning")
+            flash("Stripe price not configured. Contact stephen@afriwealthintel.com.", "warning")
             return redirect(url_for("scan.dashboard"))
 
         session = stripe.checkout.Session.create(
@@ -378,7 +378,7 @@ def stripe_webhook():
 def customer_portal():
     """Stripe customer portal for subscription management."""
     if not _stripe_enabled():
-        flash("To manage your subscription, contact hello@afriwealthci.com.", "warning")
+        flash("To manage your subscription, contact stephen@afriwealthintel.com.", "warning")
         return redirect(url_for("scan.dashboard"))
 
     stripe = _stripe()
